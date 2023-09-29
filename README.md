@@ -3,7 +3,7 @@ Documentation for *Morphological novelty evolves by bursts in a continental radi
 
 This project focuses on the tempo and mode of evolution of novel morphologies by looking at the morphological evolution of Tiliquini skinks. This includes a phylogenomic estimate of species-level relationships for the group. If you're here, you've probably already read the paper.
 
-<img src="Figues/Illustrations_Tiliqua_rugosa.png" width=50% height=50%> 
+<img src="Figues/Illustrations_Tiliqua_rugosa.png"> 
 
 ## Directories
 A general guide to the directories and files contained in this repository.  
