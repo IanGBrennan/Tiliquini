@@ -1,0 +1,725 @@
+---
+title: |  
+  |
+  |
+  | Morphological novelty evolves by bursts
+  | in a continental radiation of skinks
+  |
+  |
+  |
+  |
+  |
+output:
+  bookdown::pdf_document2:
+      toc: false
+      number_sections: false
+  #pdf_document: #default
+      #toc: true
+      #number_sections: false
+  #word_document:
+  #    reference_docx: /Users/Ian/Google.Drive/R.Analyses/Bookdown_Example/rMarkdown_CSLs/Word_Style_Reference_1.docx
+author: |
+  | Ian G. Brennan ^[Corresponding author: iangbrennan@gmail.com] $^{1,2}$, David G. Chapple$^3$,
+  | J. Scott Keogh$^2$, Stephen Donnellan$^{4,5}$
+  |
+  |
+  | $^1$Natural History Museum, Cromwell Road, London SW7 5BD, UK
+  | $^2$Division of Ecology & Evolution, Research School of Biology, 
+  | Australian National University, Canberra, ACT 2600 Australia
+  | $^3$School of Biological Sciences, Monash University
+  | Clayton, VIC Australia
+  | $^4$ School of Biological Sciences, The University of Adelaide,
+  | Adelaide, SA Australia
+  | $^5$South Australian Museum, North Terrace, Adelaide SA 5000 Australia
+  |
+  |
+  |
+  |
+  |
+fontsize: 12pt
+linkcolor: orange 
+geometry: margin = 1in
+indent: true
+csl: /Users/ianbrennan/My Drive/R.Analyses/rMarkdown_CSLs/current-biology.csl
+bibliography: /Users/ianbrennan/Documents/GitHub/Tiliquini/Manuscript/Tiliquini_References.bib
+linestretch: 1 # use to adjust line spacing
+header-includes: 
+- \usepackage{float}
+- \usepackage[left]{lineno}
+- \usepackage{graphicx,kantlipsum,setspace}
+- \usepackage{caption}
+- \captionsetup[figure]{font={stretch=1}}
+- \captionsetup[table]{font={stretch=1}}
+- \linenumbers
+- \modulolinenumbers[5]
+- \pagenumbering{gobble}
+- \pagenumbering{arabic}
+- \newcommand{\beginsupplement}{  \setcounter{table}{0} \renewcommand{\thetable}{S\arabic{table}} \setcounter{figure}{0} \renewcommand{\thefigure}{S\arabic{figure}}} # renames the supplemental figures as S...
+- \usepackage{lscape}
+- \newcommand{\blandscape}{\begin{landscape}}
+- \newcommand{\elandscape}{\end{landscape}}
+---
+
+```{r echo=FALSE,warning=FALSE}
+# this is so that figures are displayed in their proper place in the text, and not all at the end. 
+library(knitr)
+  opts_chunk$set(fig.path='figure/graphics-', cache.path='cache/graphics-', fig.align='center',
+                 external=TRUE, echo=TRUE, warning=FALSE, fig.pos='H')
+```
+
+*Keywords:* Morphological evolution, Simpsonian, skink phylogenomics. 
+
+\pagebreak
+
+
+# Summary
+
+Animals come in all shapes and sizes. From mundane to bizarre, their features are the result of millions of years of evolution and mutation accumulating differences and adjusting designs. As a result of differing selective pressures and drift phenotypes evolve and diverge. However there is little consensus about the evolutionary mode of most traits and if novel morphologies evolve from prolonged (Darwinian gradualist) or episodic (Simpsonian jump) divergences. Here we use novel exon-capture and linear morphological datasets to investigate the tempo and mode of morphological evolution in Australo-Melanesian Tiliquini skinks. By collecting a morphological dataset that encompasses the lizard body plan we are able to identify that most traits evolve conservatively but infrequent evolutionary bursts result in morphological novelty. These <!--rare-->phenotypic discontinuities occur via rapid rate increases along individual branches, inconsistent with both gradualistic and punctuated equilibrial evolutionary modes. Instead, this 'punctuated gradualism' has resulted in the rapid evolution of blue-tongued giants and armored dwarves in the ~20 million years since colonizing Australia. These results outline the evolutionary pathway towards new morphologies and highlight the heterogeneity of evolutionary tempo and mode.
+
+
+\newpage
+
+# Introduction
+
+Great variations in organismal morphology are expected to accumulate over long periods of time and reflect the varied requirements of different <!--ecologies?--> species [@Foote1997;@Deline2018]. Some organisms are very small and some are very large, others are brightly colored and others cryptic, and through drift and selection, traits respond and diverge from common forms. But despite the dramatic variation we see in nature, when we look closely, measures of these differences (variance, disparity, *et al.*) almost always fail to exceed the expectation of a neutral model where the accumulation of variation is the result of a random evolutionary walk through time (Brownian Motion) [@Lynch1990;@HansenHoule2004]. In other words, Earth's flora and fauna realize only a fraction of all possible shapes and sizes [@Hall1996]. This diversity undershoot suggests bounds on phenotypes as a result of genetic, functional, or developmental constraints [@Vermeij2015; @Galis2018]. If this is the case, then how do novel morphologies arise? And what does the mode of morphological evolution look like if not gradual?
+
+When traits are assumed to evolve under an unbiased random walk (Brownian Motion), trait variance (*v*) is proportional to evolutionary rate ($\sigma$^2^), and the accumulation of variance is dictated by elapsed time (*t*; so *v*=$\sigma$^2^*t*). This exploration of trait space (diffusion) is characterized by trait change along branches drawn from a normal (Gaussian) distribution, and assumes a flat adaptive landscape [@Arnold2001;@HansenMartins1996]. Given observed trait limits, correlations among traits, and the "clumpiness" of extant morphological diversity, this seems an unlikely expectation [@Felsenstein1988;@Deline2018]. In practice, morphological evolution is often concentrated on one or a small number of major axes. The primary axis serves as a 'line of least resistance' [@Schluter1996] providing a pool of variation on which selection can act. However evolution is not limited to the major axis, and trajectories along minor axes may also pave a path towards new phenotypes. These competing processes have been termed "elaboration" (*along* major axis) and "innovation" (*away* from major axis) [@Endler2005;@Guillerme2023]. However their relative contributions towards organismal macroevolution and the evolution of novel forms has been largely overlooked [@Guillerme2023].
+
+Almost 80 years ago G.G. Simpson suggested novelty arose by rapid "jumps" to new adaptive zones across an uneven landscape [@Simpson1944]. To explore this landscape, one potential path requires relaxing our assumption that traits evolve consistently <!--via equivalent rates -->across lineages---changing the *mode* of evolution. Proposed alternative evolutionary models such as pulsed or punctuated processes account for rapid jumps in just such a way---by deviating only in the evolutionary *mode*---leaving variance to accumulate as under BM. Another pathway however requires relaxing our assumption that traits evolve via constant rates through time---changing the *tempo* of evolution. These relaxed-rate methods are implemented in Variable Rates or Multi-Regime models of trait evolution. Traditionally, jumps have been difficult to identify without fossil data. This is due in part to the limited information content at internal nodes of a phylogenetic tree, however, even in fossil studies debate has continued about gradual versus pulsed/punctuated evolution [@Hunt2008; @Hunt2015]. Recent advances in phylogenetic comparative methods however, provide the tools to distinguish between gradual and punctuated evolutionary modes, and suggest that pulsed evolution and rate heterogeneity may be common processes [@Venditti2011; @Uyeda2011; @Landis2013; @Baker2016; @LandisSchraiber2017; @BastideDidier2023].
+
+When studying the morphological evolution of any empirical group differences in evolutionary mode and tempo are potentially compounded by mosaic evolution---which suggests that processes may vary widely across individual traits and the modules they make up. So when looking for macroevolutionary shifts towards new phenotypes, changes may be temporally, phylogenetically, or regionally (across the body) heterogenous. Just a century ago these complications seemed <!--insurmountable-->impossible to address: "To select a few of the great number of structural differences for measurement would be almost certainly misleading; to average them all would entail many thousands of measurements for each species or genus compared" [@Matthew1914]. Modern comparative methods however, have made these comparisons possible. Here we investigate the relative roles these sources of variation play, by focusing on the Tiliquini skinks. Tiliquines consist of ~62 species with varied ecologies, high levels of sociality [@Chapple2003;@Gardner2008], and highly imbalanced biogeographic richness. The majority of species (~48 spp.) are endemic to Australia where their distributions span the continent's highest alpine peaks and most inhospitable deserts. To survive in such varied climes, tiliquines have diverged into herbivorous giants that roam the treetops, spiky socialites that live communally in rock crevices or complex burrows, and elongate long-lived slow-movers that wander across open lands. These ecotypes have diagnosable morphologies, and the modest species richness of the group allows high-dimensional macroevolutionary study to be computationally tractable. Additionally, tiliquines are ideally suited for studies of the tempo and pace of morphological evolution because they have been suggested to represent a plesiomorphic grade with highly derived morphotypes nested deeply within the phylogeny [@Gardner2008;@Thorn2021]. 
+
+But to what degree are these morphological deviations *remarkable*, and what tempo and mode have they evolved by? To answer these questions we started by generating an exon-capture dataset for Tiliquini skinks and reconstructing the phylogenetic relationships of this group. To look at morphological evolution we collected an extensive phenotypic dataset of 21 linear measurements which summarize broad axes of variation across the head, body, limbs, and tail. Finally we incorporate these data into a multivariate framework for comparing evolutionary rates and disparity of traits (and the modules they compose) relative to a neutral BM model of evolution. From this we are able to show that (1) most traits show heterogeneous---not neutral or incremental---evolutionary histories, (2) evolutionary bursts are temporally and phylogenetically distributed but uncommon, and (3) these jumps result in morphological novelty that can exceed uncorrelated trait expectations. 
+
+
+# Results
+
+### Phylogenetic Analyses and Divergence Dating
+
+We present a well-resolved phylogeny that provides unprecedented resolution of Tiliquini skinks representing all genera and 53 taxa (77 samples) across this continental lizard radiation. Concatenated (Fig.\@ref(fig:Concatenated)) and coalescent-consistent species trees (Fig.\@ref(fig:MCMCtree)) return broadly similar topologies with the exception of a handful of extremely short internal branches (Fig.\@ref(fig:AnomalyZone)). Discordant branches fall within the anomaly zone [@Linkem2016] in which concatenation is likely to be mislead by the contribution of a large number of anomalous gene trees. In support of this, these nodes as represented in our coalescent species tree generally have low gene concordance factors (gCFs) and equivocal site concordance factors (sCFs), but are strongly supported by individual topology tests (see Supplementary Materials [Topology Tests](#topology-tests)). Of these contentious nodes, two have taxonomic implications. *Lissolepis* is not recovered as monophyletic, with *L. coventryi* estimated as sister to *Liopholis*, and *L. luctuosa* more closely related to the remaining tiliquines (*Cyclodomorphus*, *Tiliqua*, *Bellatorias*, *Egernia*). We also find *Cyclodomorphus* to be non-monophyletic, with the *C. gerrardii* group more closely allied with *Tiliqua* than with the *C. maximus* group.
+
+Branches that define many of the inter-generic relationships among Australian tiliquines are the result of a series of rapid speciation events occurring 15--21 mya. Most of these branches are shorter than a million years long, and several of which are less than 500k years long. These rapid divergences contrast with the deep splits between Australian tiliquines and their sister taxon *Corucia* (30 mya; 95% HPD: 27--35 mya), as well as the preceding split from *Tribolonotus* (60 mya; 95% HPD: 55-64 mya) (Fig.\@ref(fig:MCMCtree),\@ref(fig:FullMCMC)).
+
+### Phenotypic Analyses
+
+Modularity and integration model selection in *EMMLi* [@EMMLi] identified a four module model with separate within module correlations (intramodule integration varies among modules) and separate among module correlations (intermodule integration varies among modules) as the best fit to our data.
+
+13 of 19 morphological traits are best fit by variable rate or pulsed models (Fig.\@ref(fig:ModelFits)). The abundant preference for heterogeneous evolutionary models encouraged us to focus on the evolution of traits and modules under the Variable Rates model for all further analyses. The major axis of morphological variation (elaboration; PC1) across the Tiliquini and across each genus is primarily explained by tail length (Fig.\@ref(fig:PCALoadings)---\@ref(fig:BiplotsModules)). The major axis of morphological innovation (PC2) varies when considering the clade as a whole (interlimb length) or individual genera (primarily size and/or interlimb length). The relationship between elaboration and innovation, however, varies among genera. We visualize this through varied slopes between our first two PC axes, highlighting different paths to phenotypic novelty (Fig.\@ref(fig:InnovationElaboration)).
+
+With few exceptions, trait variance accumulated more slowly through the first 40 million years of tiliquine evolution than under the BM null model, for both individual traits (Fig.\@ref(fig:TraitDisparity)) and modules (Fig.\@ref(fig:DTTSlopesRates)). Comparing the slopes of these accumulation curves highlights periods of significant morphological conservatism (tail module 20--15 mya) and expansion (body and limb modules 18--14 mya; tail module 3 mya--present). Periods of expansion generally---but not always---coincide with periods of increased mean evolutionary rates (Fig.\@ref(fig:DTTSlopesRates)). Discretizing morphological change as primarily elaborative or innovative allows us to identify that both processes happen at clade and species-level scales (Fig.\@ref(fig:InnovationElaboration)). 
+
+Averaging rates however, hides pulses of extreme rate variation (Fig.\@ref(fig:Rates)). We identified pulses by isolating branches with at least twice the background evolutionary rate (mean scalar *r* $\geq$ 2) that were shifted in at least 70% of the sampling posterior. Across 19 focal traits, roughly 13% branches exhibited a significant rate pulse, with more than 3% showing major shifts in evolutionary rate (mean scalar *r* > 10) (Fig.\@ref(fig:TraitVRTrees)). Major shifts were primarily concentrated in head width, interlimb length, tail length and width, and upper arm length. In modules, nearly 16% of branches exhibited significant rate pulses, with 2% showing major shifts, concentrated in tail and body modules. Many rate increases are concentrated in the *Cyclodomorphus*--*Tiliqua* clade, with particularly rapid rates among *Cyclodomorphus michaeli*, *casuarinae*, and *praealtus*. Body and tail traits also commonly show rate pulses in the crevice dwelling *Egernia stokesii* and *depressa* clades. Under relaxed-rate models rate pulses transfer into bursts in morphological change. We are able to visualize these morphological jumps along individual branches (Fig.\@ref(fig:SimToNodes)), highlighting moments which lead to novel phenotypes.
+
+Simulations under uncorrelated and correlated Brownian Motion show differences in the accumulation of trait combinations. This highlights how evolution can be biased along particular axes (Fig.\@ref(fig:MorphoTrajectory), \@ref(fig:CorrPlot)). Empirical traits generally conform to BM expectations, however extreme phenotypes exceeding BM predictions have evolved in the feet of *Tiliqua* and tails of some *Egernia* (Fig.\@ref(fig:MorphoTrajectory), \@ref(fig:EmpSimAll)--\@ref(fig:EmpSimTail)). 
+
+
+
+# Discussion
+The variety of organismal forms has been a bottomless well of inspiration for scientists and the public, and an almost infinite source of data for macroevolutionary biologists to investigate the timing and accumulation of morphological diversity. Whether morphological disparity has accumulated early [@Foote1997], uniformly [@ImfeldBarker2022], or via intermittent pulses [@Uyeda2011;@LandisSchraiber2017;@Deline2018] remains a contested topic at varied evolutionary scales. Here we investigate the morphological evolution of the lizard body by looking across time, phylogeny, and body regions to better understand the modes by which traits evolve. We provide evidence for Tiliquini skinks that most traits evolve conservatively, but morphological novelty accumulates through extreme punctuations---jumps into new trait space. These jumps are uncommon (0.003--0.05 jumps/my), do not follow an established morphological order [@Sallan2012], and can be nested to develop new trait combinations. 
+
+### Phylogenomics of the Tiliquini
+Skinks are a tremendously species rich group that make up more than 25% of all lizard diversity (1700+ species). The largest and most impressive skinks belong to the tribe Tiliquini which are primarily distributed across Australia with a small number of species found in Indonesia, Papua New Guinea, and the Solomon Islands. Despite their importance as models of reptilian sociality [@Chapple2003;@Gardner2016] and as an emerging fossil system [@Thorn2019;@Thorn2021;@Thorn2023] phylogenetic hypotheses for the Tiliquini have relied on a handful of molecular markers and limited species sampling [@Chapple2004; @Chapple2006; @Gardner2008]. Our exon capture dataset provides a well supported estimate of the relationships among all eight Tiliquini genera and 80% of described species. In agreement with previous estimates we recover the Tiliquini as members of the Lygosominae alongside the Sphenomorphini, Eugongylini, and Mabuyini (Fig.\@ref(fig:FullMCMC)), suggesting an Asian origin for the subfamily [@Burbrink2020]. 
+
+Living tiliquines are divided into three clades, comprising the enigmatic Crocodile Skinks *Tribolonotus*, the monotypic Solomon Islands endemic *Corucia*, and an Australian radiation. Splits among these groups are old (~60 & ~30 mya), and followed by the rapid Miocene divergence of all Australian Tiliquini genera (23--15 mya). These rapid speciation events result in short internal branches that prove difficult to resolve on a per-locus basis (Fig.\@ref(fig:MCMCtree),\@ref(fig:CFxBL)). However, most of these difficult nodes are resolved by leveraging our 400 loci in ASTRAL, investigating summary statistics, and applying topology tests. Our new phylogenetic hypotheses of these nodes has necessitated that we propose taxonomic changes for two genera, which we provide in the attached Appendix ([Taxonomic Implications and Changes][Taxonomic Implications and Changes]). Some splits remain intractable however. The branching patterns among major *Egernia* clades, and the series of splits among *Lissolepis luctuosa*, *Liopholis*, and the remaining Australian tiliquines have splits so short (300--400ky) that they exist at the limits of phylogenetic reconstruction. Regardless of resolution of these difficult branches, the radiation of Australian Tiliquini into divergent ecologies and morphologies happened rapidly and in concert across open landscapes, closed forests, deserts, and mountain peaks. 
+
+
+### Evolving Novel Phenotypes by Bursts
+
+Earth's incredible biodiversity of forms and functions have evolved over hundreds of millions of years. Growing evidence suggests that much of this diversity accumulated via short periods of rapid phenotypic change, not by incremental divergence [@Uyeda2011; @LandisSchraiber2017; @Novack2022; @Leslie2021]. If this is true and pulsed morphological evolution is common, then it is important to understand how it contributes to the development of morphological novelty and diversity. To do this we identified how pulses are distributed through time, across the phylogeny, and among morphological axes. <!--not sure if it should be novelty then the axes, or the axes then novelty-->
+
+Much of modern macroevolutionary thinking relies on Simpson's (1944) idea of adaptive zones. The varied adaptive landscape accumulates diversity as lineages traverse into new adaptive zones that are centered around fitness peaks. Lineages move into new zones by evolutionary jumps---rapid movement across suboptimal space. In comparative studies the idea of a multipeak morphological landscape is often described by multi-optima OU models [@Hansen1997; @OUWIE; @Burin2023]. While these models account for the clustering of species around discrete trait values (evolutionary 'clumpiness') they do not explain well the process of movement across the landscape to occupy new peaks. Our analysis of the lizard body plan provides evidence that pulses in evolutionary rate and coincident phenotypic change are common across many morphological traits (preferred in 13 of 19 traits). This suggests that large distances of suboptimal trait space can be quickly traversed to reach new morphological realms. When comparing modeled empirical data to gradualist simulations, jumps are observable as large trait changes along individual branches (Fig.\@ref(fig:SimToNodes)). However, the accumulation of morphological disparity does not appear to be dictated solely by rare jumps, or to occur explicitly at speciation, as in the punctuated equlibrium model of @EldredgeGould1972. Instead, we find broad support for a model in which the background process of evolution by a random walk (Brownian Motion) is punctuated by bursts in evolution that result in jumps to new adaptive zones. We consider this process more akin to the "punctuated gradualism" model of Malmgren et al. (1983). While we recognize that our inferred process is not entirely consistent with @Malmgren1983 who proposed punctuations between evolutionary stasis and gradualism, we suggest that these distinctions may instead be indicative of similar processes occurring at different scales along the micro-to-macroevolutionary continuum. At both scales, a heterogeneous mode driven by an increase in evolutionary rates facilitates the evolution of novel and divergent morphologies (Fig.\@ref(fig:Rates))---in the case of these lizards, this occurs against a background morphological diffusion process. In this way we attempt to find common ground for both Darwinian and Simpsonian evolution. 
+
+In the Variable Rates model branch-specific shifts are indicative of an increase in evolutionary rate but remain a parameter of a random walk (Brownian) process. So, increasing the evolutionary rate suggests an increase in the *evolvability* and ultimately the potential variance of a lineage. An alternative interpretation of our identification of rate bursts could instead be a directional (biased) trend towards distinct trait values. A recently designed method for addressing this---the *fabric* model of *BayesTraits* [@Pagel2022]---proposes that excess rate estimates could instead be absorbed by a biased walk to new trait space. Importantly, this does not fundamentally change the outcome that evolution has swerved into a new morphological lane, but it does suggest a difference in the evolutionary mode. Whereas a rate pulse suggests a rapid, random exploration of trait space that lands in a new zone, directional trends elicit a guided evolutionary walk (e.g. via selection) towards a new area of trait space. Because a guided walk is directional the evolutionary rate need not be rapid. Regardless, the jump in trait value along a branch, and evolution of a new phenotype remains the same. This provides an appealing explanation for scenarios where selection might be particularly effective, such as in small populations or those with high trait variances. 
+
+Importantly, inferred phenotypic jumps happen along both the primary morphological axis---where they exaggerate existing variance (elaboration)---**and** along minor morphological axes---where they develop novel trait combinations (innovation). Along both major and minor axes relatively uncommon but major discontinuities result in unusual and novel morphologies, as seen in birds [@Cooney2017] and fish [@Ronco2021]. In Tiliquini skinks, the most obviously novel phenotypes belong to the Bluetongue lizards *Cyclodomorphus* and *Tiliqua*. Bluetongues concurrently underwent dramatic shifts in limb and body modules, extending the length of the body and shortening the limbs. Subsequent jumps in head and tail modules resulted in further temporally staggered morphological bursts. These nested morphological pulses gave rise to broad heads and bodies, dwarfed extremities and stumpy tails in *Tiliqua*, highlighting that truly new morphologies can arise from rapid exploration of multiple body axes. However, some of the most dramatic changes have happened on the shortest timescales. In the *Cyclodomorphus michaeli* clade (*C.casuarinae*, *C.michaeli*, *C.praealtus*) which we estimate at less than 4 million years old, we identify jumps in tail, limb, and body traits. These result in the rapid shortening of the interlimb, tail, and leg lengths in *C.praealtus*, and lengthening of these traits in *C.casuarinae* and *C.michaeli*. Interestingly, these changes are potentially driven not by functional morphological reasons but instead by physiological ones. *C.praealtus* lives at high elevations where shortened extremeties may be advantageous to maintain thermal mass following Allen's Rule [@Alho2011].
+
+Occasionally independent evolutionary trajectories arrive at similar adaptive zones, a process usually called morphological convergence. We identify convergence in the spiny crevice-dwelling clades of *Egernia* (*E. stokesii* and *E. depressa*). These clades have undergone rapid shortening and widening of the tail from non-armored, long-tailed ancestors (Fig.\@ref(fig:Rates)). Amazingly, these clades have both arrived at this novel phenotype via rate increases of roughly ten times the background rate. The repeated evolution of a distinct phenotype like highly modified tails suggests strong selective pressures shaping some morphological axes [@Ramm2020]. Another example of the strength of selection concerns the only clade of primarily crepuscular and nocturnal tiliquines the *Liopholis kintorei*--*inornata* group. This clade is broadly distributed across arid and semi-arid Australia, living in burrows they dig in loose soil or sand. However, the transition of these skinks towards a nocturnal lifestyle does not appear to have driven exceptional morphological differentiation from other *Liopholis*, except for the size of their eyes. The transition in diel activity is coincident with a jump in eye diameter and even the evolution of vertical pupils in the Night skink *Liopholis striata* (Fig.\@ref(fig:TraitVRTrees)). Despite the evolution of novel morphologies by phenotypic bursts, truly exceptional morphologies (those exceeding Brownian expectations) are rare. In a few cases, such as the feet of some *Tiliqua* and the tails of some *Egernia*, contemporary trait values fall outside what we expect under a uncorrelated random walk model. These instances provide the strongest cases for active selection driving the evolution of phenotypes (Fig.\@ref(fig:MorphoTrajectory)). 
+
+### Conclusions
+
+Animal bodies are made up of many morphological traits which in their myriad combinations contribute to Earth's amazing biodiversity. This diversity has diverged from common forms on deep temporal scales, however our understanding of this process has begun to question the popularity of commonly invoked Darwinian gradualism as its driver. Our study of gross lizard morphology provides evidence instead that trait evolution is heterogeneous, and is structured phylogenetically, temporally, and across the body-plan. This adds to a growing body of evidence that morphological traits diverge through evolutionarily discontinuous processes. These discontinuities contribute substantially towards the evolution of novel morphologies, and we suggest that this is likely a common process in morphological diversification across animals that helps reconcile Darwinian and Simpsonian evolution. 
+
+
+### Acknowledgments
+A considerable thank you to the curators and staff of the many Australian museums and databases for access to tissues and locality data that made this work possible. We greatly appreciate the assistance of Emily Lemmon Moriarty, Alan Lemmon, and Michelle Kortyna in generating AHE data for this project. We thank Mark Hutchinson and Kailah Thorn for sharing their expertise in Tiliquini skinks, and colleagues in the Natalie Cooper lab at the NHM for their insight. 
+
+### Author Contributions
+Conceptualization, IGB, JSK, SD; sampling, JSK, SD.; analysis, IGB; funding acquisition/resources, JSK, SD, DCG; data curation, DCG, IGB; writing---original draft, IGB; writing---reviewing & editing, all authors. 
+
+
+
+
+
+# Figures
+
+```{r MCMCtree, echo=FALSE, out.height = '90%', fig.pos='H', eval=T, fig.cap="(ref:F1)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Fig1_Egerniinae_MCMCtree_gCF.pdf")
+```
+(ref:F1) \small Species tree caption below.
+
+\newpage
+
+\small Figure 1. The species tree estimated with ASTRAL and time-calibrated with MCMCtree shows late Oligocene or early Miocene divergences of most major Australian Tiliquini skinks, in contrast to a Paleocene divergence from *Tribolonotus* and early Oligocene divergence from the monotypic *Corucia*. Local posterior supports for all nodes are 100, except where indicated by grey numbers. Branches are colored according to gene concordance factors (gCF)---the proportion of gene trees which decisively support the given bifurcation---as estimated by IQ-TREE. The ternary plot bottom left shows the distribution of site concordance factors (sCF) for all nodes in the presented tree. sCFs provide another way of interpreting uncertainty by showing relative support for alternative resolutions of a given bifurcation (sDF1, sDF2). sCF values plotted in black on the ternary plot and corresponding tree highlight nodes where sCF < sDF1 or sCF < sDF2, meaning the bifurcation presented on the tree is not supported by the majority of sites in the concatenated alignment. sCF values plotted in grey on the ternary plot and corresponding tree highlight nodes where sCF $\approx$ sDF1 $\approx$ sDF2, suggesting an unresolved polytomy. Animals illustrated are (a) *Corucia zebrata*, (b) *Egernia depressa*, (c) *Cyclodomorphus michaeli*, and (d) *Tiliqua scincoides*. 
+
+\normalsize
+
+```{r InnovationElaboration, echo=FALSE, out.height = '90%', fig.pos='H', eval=T, fig.cap="(ref:F1a)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Fig2_Egerniinae_InnovationElaboration_Tree.pdf")
+```
+(ref:F1a) \small Major and minor axes of morphological change allow us to identify moments of elaboration (along PC1--blues) and innovation (along PC2--oranges) in Tiliquini skinks. Top left--biplot of first two principal components show the distribution of observed species (white circles with black outlines) and estimated ancestors (grey circles) along the major axis of elaboration and innovation. Colored branches on the tree at center indicate the primary direction of morphological change from ancestor to descendant node. Blue branches indicate principally elaborative change, while orange branches indicate principally innovative change. At right we visualize the varied relationships between these axes among groups. For each clade (genera and group as a whole) we plot the evolution of the relationship between elaborative and innovative axes through time from the root of the clade (lightest regression) to the tips (darkest regression). Regression plots highlight the varied patterns of subclades, including strong conservativism of *Liopholis* and novelty of *Cyclodomorphus*. 
+
+
+```{r DTTSlopesRates, echo=FALSE, out.height = '90%', fig.pos='H', eval=T, fig.cap="(ref:F1b)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Fig3_Egerniinae_DTT_DiffSlopes_Rates.pdf")
+```
+(ref:F1b) \small Evolutionary trajectories vary widely across modules and through time. (left) Accumulation of multivariate disparity (as variance) through time for each module (solid lines) compared to Brownian Motion (dotted lines). (center) The comparison of slopes of each module to BM highlights periods of morphological expansion (values greater than 0) and conservatism (values less than 0). (right) Evolutionary rates across modules are highly heterogeneous (see three different scales for y axis), showing periods of temporal variability, as well as high variances within modules and among traits (Fig.\@ref(fig:TraitRates)--\@ref(fig:TraitDiffSlopes)).
+
+```{r Rates, echo=FALSE, out.height = '95%', fig.pos='H', eval=T, fig.cap="(ref:F2)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Fig4_Egerniinae_VRcolored_MorphoTrajectory_RateToNode.pdf")
+```
+(ref:F2) \small Rates caption below.
+
+\small Figure 4. Bursts in rates of phenotypic evolution are distributed across the Tiliquini tree and exhibit strong departures from background rates. Rows represent morphological modules. In all plots branch colors correspond to estimated multivariate evolutionary rates, with significant rate changes noted by white circles at nodes or along branches. (left column) Tiliquini species trees highlighting the location of multivariate rate pulses. (center column) Branch rate trajectories plotted from the root node to nodes that show significant rate shifts (estimated rate scalar *r* > 2). Solid grey envelope contains 95% quantiles of background evolutionary rates (estimated rate scalar *r* < 2) with the mean plotted in dark grey. (right column) Phenograms of an individual trait from each module showing the evolution of extreme phenotypes driven by bursts in evolutionary rate. In each row, a black arrow highlights a single branch of interest across all three plots.
+
+\normalsize
+
+
+```{r MorphoTrajectory, echo=FALSE, out.height = '60%', fig.pos='H', eval=T, fig.cap="(ref:F3)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Fig5_Egerniinae_Morphotrajectory_VR_Square.pdf")
+```
+(ref:F3) \small Novel morphologies exceed expectations of uncorrelated trait evolution. Bivariate plots show a phylomorphospace (species points connected by a phylogeny) of the Tiliquini. Each plot isolates a single clade within the group to highlight morphological extremes. Branches of the highlighted clade are colored according to evolutionary rates, with remaining species and branches in grey. In the background are ellipses containing 25/50/80/95% of traits simulated under empirical rates for uncorrelated (grey) and correlated (blue rings) Brownian Motion. Highlighted clades are (clockwise from top left: *Tiliqua*; *Egernia stokesii--E.hosmeri*, *Tiliqua rugosa--T.gigas*, *Cyclodomorphus--Tiliqua*).
+
+
+
+```{r SimToNodes, echo=FALSE, eval=T, out.height = '95%', fig.align="center", fig.cap="Phenotypic jumps caption below."}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Fig6_Egerniinae_SimToNode_DistanceBtwnNodes_Upright.pdf")
+```
+\small Figure 6. Phenotypic jumps are visible as greater than expected trait changes along branches, as estimated under the Variable Rates model and compared to Brownian Motion. Rows correspond to morphological modules, noted in grey at far left. Both circular (left column) and line plots (center column) show the evolutionary trajectory of focal traits from the root of the Tiliquini tree (node 57, dark red) to a single tip (dark purple) that has exhibited one or more rate bursts. (left) Large colored rings represent the simulated distribution of trait values under uncorrelated Brownian Motion at each node along the root-to-tip trajectory. Small colored points represent observed and ancestral trait values as estimated under Variable Rates as they traverse the path root-to-tip connected by a grey line. (center) The line plot indicates the trait difference of nodes as (observed - simulated) values with 95% quantiles shown in light grey. Nodes that fall above the dotted line (0) show greater than expected trait change along the branch that leads to that node, visible as greater distances between points in the plots at left. Nodes falling below the dotted line show less trait change than expected. Trees at right serve as a guide for the root-to-tip path of each example, with nodes colored accordingly. Examples of divergent morphologies are illustrated (purple) against a 'typical' Tiliquine skink (*Liopholis*--grey). Black arrows in each row indicate the greatest jump in phenotype compared to expectations. References to node numbers can be seen in Fig. \@ref(fig:NodeNumbers). 
+
+\normalsize
+
+
+\newpage
+
+
+\newpage
+
+# Materials and Methods
+Walkthroughs of the data, code, analyses, and results are available in the *Supplementary Material*, on GitHub at www.github.com/IanGBrennan/Tiliquini, and from the Dryad Digital Repository: http://dx.doi.org/10.5061/dryad.[NNNN] (to be updated)
+
+### Data Collection
+We assembled an exon-capture dataset across 77 Tiliquini skinks representing 48 of 62 currently recognized species, with a focus on Australian taxa (45 of 48 spp.). This sampling covers all 8 genera, as well as many recognized subspecies ([Table S1][Table S1.]). We included outgroup representatives from all subfamilies and most tribes, generated as part of broader look at squamate phylogenetics [@Burbrink2020]. Nuclear exons were targeted and sequenced using the Anchored Hybrid Enrichment approach [@AHE], and resulted in 379 loci (average coverage 367 loci, min = 362, max = 375) totaling ~600 kbp per sample (Fig.\@ref(fig:LocusInfo)). Rough alignments were compiled using MAFFT [@MAFFT] and refined using MACSE [@MACSE], alignment parameters are specified in the supplementary materials. Per locus information content is summarized in Fig.\@ref(fig:LocusQuality). 
+
+We collected 21 linear measurements for 61 Tiliquini skink species from 650 museum samples (average 10 per spp., min.=2, max.=134). These linear measurements aimed to capture the gross morphology of the lizard body plan and are distributed across the head, body, limbs, and tail (Fig.\@ref(fig:Animal)). From the initial 21 measurements some were further divided (e.g. snout-vent length) or dropped to arrive at a set of 19 non-overlapping morphological traits that are summarized in the Supplemental Material ([Morphological Measurements][Morphological Measurements]).
+
+### Phylogenetic Analyses
+We reconstructed individual genealogies for our exon-capture data (n=379) under maximum-likelihood in IQ-TREE 2 [@IQTREE2], allowing the program to assign the best fitting model of molecular evolution using ModelFinder [@ModelFinder], then perform 1,000 ultrafast bootstraps [@UFBOOT]. We then estimated the species tree using the shortcut coalescent method ASTRAL III [@ASTRAL], with IQ-TREE gene trees as input. For comparison we estimated a locus-partitioned concatenated species tree in IQ-TREE. To estimate divergence times among taxa we applied a series of fossil and secondary calibrations in MCMCtree [@MCMCTREE] as outlined in [Table S2][Table S2.]. We started by concatenating all exonic loci and partitioning them into two partitions, first and second codons together, and third codons separately, then used *baseml* [@BASEML] to get the approximate likelihoods before running *mcmctree* on the gradient and Hessian (in.BV file) for four replicate analyses. We compared mcmc files for stationarity and convergence, combined them using logCombiner, and used this combined mcmc file to summarize divergence times on our tree (*print = -1* in .ctl file). 
+
+### Phenotypic Analyses
+Our interest is in identifying the tempo and mode of evolution that produces morphological novelty and so we focus on the <!--temporal, phylogenetic, and regional -->dynamics of morphological diversification in the Tiliquini radiation. Our approach is based on a novel dataset that summarizes<!-- major axes of variation in--> the lizard body plan. We started by generating mean trait values per species and removed the effect of absolute size by transforming our trait values into log-shape ratios. To identify independently evolving morphological modules we designed module models that ranged from highly specialized (head, limbs, body, and tail traits evolve independently) to highly integrated (null model in which all traits belong to a single module), see Supplementary Material for details. We compared model likelihoods and estimated correlation coefficents using *EMMLi* [@EMMLi] and used the preferred model to designate module-specific datasets. 
+
+To identify the evolutionary mode of individual morphological traits we fit a series of models ranging from a basic unbiased random walk to entirely punctuated. These allowed phenotypes to evolve through incremental change (Brownian Motion---BM), incremental change around an optimum (Ornstein Uhlenbeck), decreasing change with time (Early Burst)---akin to an adaptive radiation scenario, two "pulse" or "jump" models which allow change in instantaneous bursts (Jump Normal, Normal Inverse Gaussian), and a Variable Rates model in which rates of change vary across individual branches of the tree---similar to the relaxed clock model of timetree estimation. For consistency we fit the BM, OU, EB, JN, and NIG models in *pulsR* [@LandisSchraiber2017]. We fit the VR model in *BayesTraits V3* [@VR] and processed the output using the standalone *PPPostProcess* software. We compared model fit by AIC scores. *BayesTraits* implements an MCMC algorithm so to estimate a maximum likelihood for the VR model we transformed the input tree by the estimated median rate scalar, then fit the observed data to the transformed tree using BM in *pulsR*. We obtained an AIC value by penalizing the likelihood for each scaled branch of the transformed tree with mean scalar *r* greater than two, in addition to the estimation of the rate parameter and root state. We then calculated AICw for each model and identified a preferred model if its AICw was greater than twice the next best model.
+
+To understand the temporal and phylogenetic heterogeneity of evolution we estimated ancestral states for each trait under the rate heterogeneous VR model by optimizing Brownian Motion on the VR rate-transformed trees in *phytools* [@phytools]. We extrapolated trait values linearly along branches given start and end values at nodes and a constant evolutionary rate. We did this from the root to the tips in 0.1 million year windows across all branches (using the function *trait.at.time*). To summarize the standing morphological variation across the same temporal windows we calculated disparity as both the variance and the average squared Euclidean distance among all pairs of contemporaneous taxa (using *extract.variance*). Similarly we extracted the mean evolutionary rate in 0.1 million year windows for each trait and module (using *extract.stat*). To determine if our observed patterns follow a null expectation of the accumulation of disparity through time we simulated univariate and uncorrelated and correlated multivariate datasets for each trait and module applying parameter estimates from observed data for theta, sigma, and covariance. We carried out the same disparity and rate through time extraction methods in 0.1 million year windows. To understand the relative contribution of niche expansion and niche packing to the accumulation of disparity through time we compared slopes of the accumulation of variance of observed traits and modules to simulated data. We plotted the trends in variance, rate, and slopes using custom functions found in the scripts included in the supplement. 
+
+Lastly, to summarize the major avenues of morphological change we ran PCA on (1) all traits jointly and across (2) individual modules and (3) clades separately, then fit linear models to the first 2 PC axes (always accounting for $\ge$ 90% of variance). This allowed us to identify the major axes of elaboration (PC1) and innovation (PC2) following the language of @Endler2005 and @Guillerme2023. Tracking the angle (slope of regression) and extent of trait change between individual nodes enabled us to qualitatively identify periods of primarily innovation or elaboration on a branch-by-branch basis.
+
+\newpage
+
+# References
+
+<div id="refs"></div>
+
+\newpage
+
+
+\beginsupplement
+
+# Appendix
+
+### Taxonomic Implications and Changes
+
+As a result of our phylogenetic investigation, some taxonomic issues must be addressed and others will unfortunately remain outstanding until more focused sampling can be achieved. We comment on both cases below.
+
+\  
+
+**(1)** Paraphyly of *Lissolepis*: Phylogenetic estimation and topology testing do not support the monophyly of *Lissolepis*. The type species of *Lissolepis* is *L.luctuosa* (Peters 1866), and despite *L.coventryi* (Storr 1978) forming a clade with *Liopholis*, these taxa are morphologically distinct. We feel that to acknowledge the distinctiveness of *L.coventryi* the best course of action is to erect a new genus to contain this species. 
+
+*Paluarius* gen. nov. Brennan, Chapple, Keogh & Donnellan
+
+*Egernia* Storr 1978  
+*Lissolepis* Gardner 2008
+
+Type species: *Egernia coventryi* Storr 1978
+
+Diagnosis and definition: Currently a monotypic genus comprising a single medium sized ($\bar x$ = 80 mm; max = 100 mm) skink with four well developed limbs each with five digits and fourth toe much longer than third. Lower eyelid movable and without a transparent 'window'. Parietal and nasal scales both narrowly separated. Ear aperture small and with two anterior lobules. Distinguished from *Lissolepis* by broad geographic separation (southwest WA for *Lis.*; extreme southeast SA and coastal VIC for *Pal.*), continuous striped (*Paluarius*) rather than spotty (*Lissolepis*) dorsal patterning, shorter and blunter head (head length 15% of SVL in *Pal.*, 20% in *Lis.*), fewer midbody scale rows, longer postnasal crease that runs to the top of the nasal scale, and smaller size (80--100 mm vs. 100--129mm). 
+
+<!-- Distribution and habitat: -->
+
+Etymology: This skink lives among swamps, heaths, and marshes in far southeastern Australia. In allusion to its preferred habitat, from latin 'palus'--swamp and '-arius'--where things are kept, together meaning 'keeper of the swamp'. 
+
+Contents: *Paluarius coventryi* comb. nov. (Storr 1978)
+
+\  
+
+**(2)** Paraphyly of *Cyclodomorphus*: Phylogenetic estimates and topology testing do not support the monophyly of *Cyclodomorphus* (Fitzinger 1843). The type species of *Cyclodomorphus* is *C. casuarinae* (Dumeril & Bibron 1839), which along with the species *gerrardii*, *michaeli*, and *praealtus* form a clade with *Tiliqua*. We propose a new generic name to contain the taxa more closely related to *C. maximus* than to *C. gerrardii*. 
+
+*Caeruleulus* gen. nov. Brennan, Chapple, Keogh & Donnellan
+
+*Cyclodus* Dumeril & Bibron 1839  
+*Hinula* Gunther 1867  
+*Lygosoma* Hardwicke & Gray 1828  
+*Tiliqua* Gray 1825  
+*Omolepida* Gray 1845  
+*Cyclodomorphus* Fitzinger 1843
+
+Type species: *Omolepida maxima* Storr 1976
+
+Diagnosis and definition: A genus of moderate to large, elongate skinks characterized by long interlimb (trunk) lengths and relatively short limbs, each with five digits. Many scalation characters are shared with *Cyclodomorphus*, and so make distinguishing the two difficult. Starting from the snout, nasals are in contact with one another and broadly contact the frontonasal which widely separates the prefrontals. There are no subocular scales, but three supraocular scales, the anterior two of which contact the frontal. Eyelid movable and no transparent 'window'. Parietal scales are widely separated by an interparietal scale. Ear opening small, with small anterior lobules (usually 2). 
+
+Etymology: From the Latin 'caeruleus' for blue and the diminuitive '-ulus', meaning 'little blue one', alluding to their blue tongues and smaller size relative to the larger 'bluetongue' relatives *Tiliqua*. 
+
+Contents: *Caeruleulus branchialis* comb. nov. (Gunther 1867); *Caeruleulus celatus* comb. nov. (Shea & Miller 1995); *Caeruleulus maximus* comb. nov. (Storr 1976); *Caeruleulus melanops elongatus* comb. nov. (Shea & Miller 1995); *Caeruleulus melanops melanops* comb. nov. (Stirling & Zietz 1893); *Caeruleulus melanops siticulosus* comb. nov. (Shea & Miller 1995); *Caeruleulus venustus* comb. nov. (Shea & Miller 1995). 
+
+Comment: Wells (2007) proposed splitting *Cyclodomorphus*, reallocating *C.gerrardii* to *Hemisphaeriodon* and creating a new generic name for the *Cyclodomorphus maximus* clade. In following the best practices in herpetological nomenclature outlined by Kaiser et al. (2013) and adopted by the Australian Society of Herpetologists in their Position Statement on Taxonomy (2022) we do not recognize the name proposed by Wells (2007) and instead provide *Caeruleulus* as the generic name for this clade of tiliquine skinks.
+
+
+\  
+
+**(3)** *Cyclodomorphous melanops*: Our limited sampling suggests species-level divergences among the three subspecies of *C. melanops* (~4mya, 2mya), however unpublished mtDNA data shows more complicated genetic history among these taxa and the closely related *C. venustus*, *C. celatus*, and the currently unsampled *C. branchialis*. In light of these results we take the conservative stance of retaining the subspecies as is, and suggest a more focused study with greater sampling would provide better understanding of this morphologically conservative clade. 
+
+\  
+
+**(4)** *Egernia stokesii*: Similarly, the divergence between *E. stokesii* subspecies *E.s.badia* and *E.s.zellingi* are comparatively deep (~4.5mya), and subspecies are recovered as reciprocally monophyletic. However, our sampling lacks representatives of the nominate subspecies *E.s.stokesii*. Unpublished mtDNA data does not appear to distinguish between subspecies *E.s.stokesii* and *E.s.badia*, and so we refrain from making taxonomic changes without having *E.s.stokesii* included in our analyses. 
+
+\  
+
+**(5)** Paraphyly of *Liopholis inornata*: Our sampling of *L. inornata* and sister taxa *L. slateri* and *L.* sp. nov. from Purnululu highlight a complicated phylogenetic history. As currently understood, *L. inornata* is a wide ranging species found across much of arid WA, SA, NSW, and QLD. This range overlaps entirely with *L. slateri* with which it could potentially be confused, but remains allopatric from *L.* sp. nov. Purnululu. We highlight this clade as a group which needs a much more thorough population genetic assessment to resolve. 
+
+\  
+
+**(6)** Paraphyly of *Liopholis margaretae*: Chapple & Keogh (2004) identified the non-monophyly of *Liopholis margaretae* subspecies and recommended that *L. personata* be identified as a distinct species. Despite this, sources such as the [Reptile Database](https://reptile-database.reptarium.cz/) and [Atlas of Living Australia](https://ala.org.au/) continue to treat these taxa as conspecific. Our phylogenetic analyses are concordant with those of Chapple & Keogh (2004) and we echo the evolutionary distinctiveness of *Liopholis personata* as a species. 
+
+\newpage
+
+
+# Supplementary Material
+
+Supplementary material included below consists of additional figures, tables, and extended methods to complement the main text. 
+
+\blandscape
+#### Table S1. 
+Taxon sampling for this project.
+\scriptsize
+\singlespace
+
+Genus           Species         Subspecies        Specimen Registration        ABTC No.       Locality                        State       Country             Latitude        Longitude
+-----           -------         ----------        ---------------------        --------       ---------                       -----       -------             --------        ---------
+Bellatorias     frerei          —                 AMS R.113970                 10881          Bunya Mountains                 QLD         Australia                                   
+Bellatorias     frerei          —                 AMS R.96317                  11439          Heathlands                      QLD         Australia                               
+Bellatorias     major           —                 SAMA R33412                  4115           Whian Whian SF                  NSW         Australia                               
+Bellatorias     obiri           —                 AMS R.100018                 11440          Jabiluka                        NT          Australia                         
+Corucia         zebrata         —                 —                            50418          Levaleva Choiseul Island        —           Solomon Islands                             
+Cyclodomorphus  melanops        elongatus         MAGNT R20662                 29413          Finke Gorge NP                  NT          Australia                                               
+Cyclodomorphus  casuarinae      —                 SAMA R22957                  54924          Mount Victoria                  NSW         Australia                                           
+Cyclodomorphus  casuarinae      —                 SAMA R63333                  101476         —                               TAS         Australia                               
+Cyclodomorphus  celatus         —                 SAMA R22873                  54920          Burns Beach                     WA          Australia                                   
+Cyclodomorphus  gerrardii       —                 SAMA R34884                  16792          Paluma                          QLD         Australia                                 
+Cyclodomorphus  maximus         —                 WAM R168816                  135574         Middle Osborn Island            WA          Australia                                             
+Cyclodomorphus  melanops        siticulosus       SAMA R52374                  58905          St. Francis Island              SA          Australia                                                      
+Cyclodomorphus  melanops        melanops          SAMA R34056                  11739          Mount Stuart Homestead          WA          Australia                                                      
+Cyclodomorphus  praealtus       —                 —                            97283          Bogong High Plains              VIC         Australia                                   
+Cyclodomorphus  venustus        —                 SAMA R18869                  54897          Port Germein Dump               SA          Australia                                           
+Egernia         cunninghami     —                 AMS R.112873                 11398          Yetman                          NSW         Australia                           
+Egernia         cunninghami     —                 AMS R.118939                 14392          Kanangra Walls                  NSW         Australia                                   
+Egernia         depressa        —                 SAMA R22856                  53933          Python Pool                     WA          Australia                             
+Egernia         depressa        —                 WAM R120631                  63425          Mardathuna                      WA          Australia                           
+Egernia         douglasi        —                 ABTC 141482                  141482         Beverley Springs Homestead      WA          Australia                                             
+Egernia         eos             —                 WAM R98079                   23913          Ainsley Gorge                   WA          Australia                         
+Egernia         epsisolus       —                 WAM R90897                   63515          Woodstock                       WA          Australia                         
+Egernia         formosa         —                 SAMA R29267                  53997          Yalgoo                          WA          Australia                     
+Egernia         formosa         —                 WAM R103993                  61869          Woodstock Station               WA          Australia                                 
+Egernia         hosmeri         —                 SAMA R36707                  17065          Mount Isa                       QLD         Australia                         
+Egernia         kingii          —                 SAMA R29444                  54006          Mount Clarence                  WA          Australia                             
+Egernia         napoleonis      —                 SAMA R23080                  53949          Denmark                         WA          Australia                           
+Egernia         pilbarensis     —                 WAM R132519                  63479          Burrup Peninsula                WA          Australia                                   
+Egernia         richardi        —                 SAMA R26315                  40639          Koonalda Station                SA          Australia                                 
+Egernia         richardi        —                 SAMA R63272                  112886         Merdayerrah Sandpatch           SA          Australia                                       
+Egernia         rugosa          —                 —                            108820         Charleville                     QLD         Australia                     
+Egernia         rugosa          —                 —                            108823         Charleville                     QLD         Australia                     
+Egernia         saxatilis       intermedia        SAMA R44004                  12812          The Grampians                   VIC         Australia                                       
+Egernia         stokesii        zellingi          SAMA R42897                  9143           Stonehenge                      QLD         Australia                           
+Egernia         stokesii        zellingi          SAMA R45053                  35026          Toopawarinna Hill               SA          Australia                                   
+Egernia         stokesii        zellingi          SAMA R44127                  57871          Pernatty Station                SA          Australia                                             
+Egernia         stokesii        badia             WAM R135193                  63511          Walycatchem                     WA          Australia                                         
+Egernia         stokesii        badia             WAM R152997                  92933          Walga Rock                      WA          Australia                                       
+Egernia         stokesii        badia             WAM R152998                  92934          Walga Rock                      WA          Australia                                       
+Egernia         striolata       —                 AMS R.126116                 1150           Denham                          NSW         Australia                                   
+Egernia         striolata       —                 SAMA R53262                  70470          Telowie                         SA          Australia                                     
+Egernia         striolata       —                 SAMA R55661                  76988          Moorrinya NP                    QLD         Australia                                           
+Egernia         striolata       —                 QM J86594                    100573         Durikai SF                      QLD         Australia                                       
+Eutropis        longicaudata    —                 SAMA R38916                  57273          —                               —           Malaysia                                    
+Liopholis       guthega         —                 SAMA R37781                  16273          Kosciusko NP                    NSW         Australia                                           
+Liopholis       inornata        —                 MAGNT R20673                 29437          Finke Gorge NP                  NT          Australia                                             
+Liopholis       inornata        —                 SAMA R45219                  58081          Mootatunga                      SA          Australia                                         
+Liopholis       inornata        —                 SAMA R49140                  58604          Eyre Peninsula                  SA          Australia                                             
+Liopholis       inornata        —                 NMV D65868                   61607          Buningonia Springs              WA          Australia                                               
+Liopholis       kintorei        —                 WAM R131047                  63449          —                               WA          Australia                                 
+Liopholis       margaretae      margaretae        SAMA R51590                  42404          Amata                           SA          Australia                                       
+Liopholis       margaretae      personata         SAMA R24815                  53965          Mount Remarkable NP             SA          Australia                                                     
+Liopholis       modesta         —                 SAMA R39172                  12411          Retreat                         NSW         Australia                                     
+Liopholis       montana         —                 SAMA R37768                  16389          Mount Gingera                   ACT         Australia                                           
+Liopholis       multiscutata    —                 SAMA R63458                  126142         —                               SA          Australia                                     
+Liopholis       pulchra         pulchra           WAM R132054                  63464          D'Entrecasteaux NP              WA          Australia                                                     
+Liopholis       sp. nov.        —                 WAM R156715                  85105          Purnululu NP                    WA          Australia                                           
+Liopholis       slateri         slateri           —                            99920          Finke River                     NT          Australia           	-23.8142    	132.6636                          
+Liopholis       striata         —                 SAMA R45402                  58180          Ampeinna Hills                  SA          Australia                                           
+Liopholis       whitii          —                 SAMA R53588                  94846          Spring Mount                    SA          Australia                                         
+Lissolepis      coventryi       —                 SAMA R45916                  58241          Nelson                          SA          Australia                                       
+Lissolepis      luctuosa        —                 WAM R90386                   135575         Walpole                         WA          Australia                                       
+Lissolepis      luctuosa        —                 WAM R90226                   135576         Lake Wilson                     WA          Australia                                           
+Tiliqua         adelaidensis    —                 SAMA R42426                  57682          Burra                           SA          Australia                                       
+Tiliqua         gigas           gigas             AMS R.124720                 48811          Usino                           Madang       Papua New Guinea                                  
+Tiliqua         gigas           gigas             AMS R.124721                 48812          Usino                           Madang       Papua New Guinea                                  
+Tiliqua         gigas           evanescens        AMS R.129710                 50170          Guleguleu Normanby Island       Milne Bay   Papua New Guinea                                                       
+Tiliqua         multifasciata   —                 SAMA R49974                  37896          Purni Bore                      SA          Australia                                           
+Tiliqua         nigrolutea      —                 SAMA R33410                  4114           Clarkefield                     VIC         Australia                                           
+Tiliqua         occipitalis     —                 SAMA R28391                  54961          Iron Knob                       SA          Australia                                     
+Tiliqua         rugosa          rugosa            SAMA R18978                  55216          Bremer Bay                      WA          Australia                                 
+Tiliqua         rugosa          aspera            SAMA R20587                  55264          Cowell                          SA          Australia                             
+Tiliqua         scincoides      intermedia        QM J51107                    24812          Cape Flattery                   QLD         Australia                                               
+Tiliqua         scincoides      chimaera          WAM R112258                  101416         Latdalam                        —           Indonesia                                           
+Tiliqua         scincoides      scincoides        SAMA R28511                  54968          Minnipa                         SA          Australia                                   
+Tiliqua         scincoides      intermedia        SAMA R53937                  70143          Tunnel Creek Gorge              WA          Australia                                             
+Tribolonotus    gracilis        —                 AMS R.122119                 14359          Karkar Island                   —           Papua New Guinea                            
+
+\newpage
+\normalsize
+#### Table S2. 
+Fossil calibrations as implemented in MCMCtree. The root (Mabuyini + Tiliquini) and the Tiliquini crown are calibrated with Cauchy distributions based on estimates from previous studies. These leave 2.5% of the distribution each above and below the minimum and maximum ages noted below. The calibration for the crown of Australian Tiliquini is bounded on the lower end by the Dwornamor Local Fauna of Riversleigh which includes *Tiliqua pusilla* and *Egernia gillespieae*, and on the upper end by *Proegernia palankarinnensis* and *P. mikebulli*. The prior allows 2.5% below the minimum bound and 20% above the maximum bound. The remaining calibrations are all soft minimums with 2.5% below the minimum. 
+
+
+\scriptsize
+Node      Fossil Information                                                    Calibration                Split                                            Source
+-----     ------------------                                                    ---------------            ----------------------                           --------------
+A         Soft Secondary                                                        '>0.5<0.8'                 Root (Mabuyini + Tiliquini)                    [CITE Burbrink et al. 2021; Thorn et al. 2021]
+B         Soft Secondary                                                        '>0.37<0.62'               Crown Tiliquini (*Tribolonotus* + all others)   [CITE Thorn et al. 2019; Thorn et al. 2021]
+C         *Tiliqua pusilla*^$\dagger$^, *Egernia gillespieae*^$\dagger$^,       'B(0.15,0.26,0.025,0.2)'   Crown Australian Tiliquini                      [CITE Martin et al. 2004; Thorn et al. 2019]
+          *Proegernia palankarinnensis*^$\dagger$^, *P. mikebulli*^$\dagger$^                              (*Corucia* + all others)
+D         *Egernia gillespieae*^$\dagger$^                                      '>0.15'                    Crown *Egernia*                                  [CITE Thorn et al. 2019]
+E         *Tiliqua cf. scincoides*^$\dagger$^                                   '>0.036'                   *Tiliqua gigas* + *Tiliqua scincoides*           [CITE Mackness & Hutchinson 2000]
+F         *Egernia cf. hosmeri*^$\dagger$^                                      '>0.036'                   *Egernia hosmeri* + *Egernia stokesii*           [CITE Mackness & Hutchinson 2000]
+
+\elandscape
+\normalsize
+
+```{r FullMCMC, echo=FALSE, fig.pos='H', out.height = '85%', eval=T, fig.cap="(ref:SF0)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/FigS1_Egerniinae_mcmctree_CombinedRuns.pdf")
+```
+(ref:SF0) \small  Tiliquini species tree estimated with ASTRAL from IQ-TREE genetrees and time-calibrated with MCMCtree. Shaded bars at nodes indicate 95% confidence estimates on ages. Nodes labelled by letters A--F correspond to fossil calibrations listed in Table S2. Inset tree depicts the scincid phylogeny estimated from AHE data showing the placement of the Tiliquini among the Lygosominae.  
+
+\newpage
+
+## Alignment Specifications
+Input MAFFT/MUSCLE alignments were refined with MACSE using the following call:
+```{bash, eval=F}
+$ java -jar /Applications/macse_v2.03.jar \
+  -prog refineAlignment -align [rough alignment path] \
+  -optim 1 -local_realign_init 0.1 -local_realign_dec 0.1 \
+  -fs 10 -stop 10
+```
+
+
+## Investigating Data Completeness and Informativeness
+
+Below we visualize data completeness and informativeness on a per sample and per locus basis, as well as provide some insight into our data cleaning and sample selection. 
+```{r LocusInfo, echo=FALSE, fig.pos='H', eval=T, fig.cap="(ref:SF1)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/FigS2_Egerniinae_LocusCoverage.pdf")
+```
+(ref:SF1) \small Number of loci recovered per sample for all Tiliquini and outgroup taxa included in the molecular data. Samples are colored by Genus (left) and coverage (right). 
+
+
+```{r LocusQuality, echo=FALSE, eval=T, fig.align="center", fig.cap="(ref:SF2)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/FigS3_Egerniinae_LocusInformativeness.pdf")
+```
+(ref:SF2) \small Plots of individual locus completeness and informativeness. Points are colored according to number of informative (variable) sites (blue---few, red---many). Top row shows the number of variable sites in each alignment as a function of alignment length and AT content. The middle row shows the number of parsimony informative sites as a function of alignment length and AT content. The bottom row shows alignment length and number of variable sites as a function of completeness.
+
+\pagebreak
+
+
+## Morphological Measurements
+
+```{r Animal, echo=FALSE, out.height = '80%', fig.pos='H', eval=T, fig.cap="(ref:SFA)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Animal_Measurements.pdf")
+```
+(ref:SFA) \small The 21 linear measurements collected.
+
+Initial morphological measurements used for data investigation:
+
+No.   Measurement	            Abbreviation	      Method
+---   -----------             ------------        --------
+1     Snout-vent length	      SVL	                From the tip of the snout to the vent.
+2     Snout-axilla length	    SAL	                From the tip of the snout to the midpoint 
+                                                  of the crease between the fore-limb and 
+                                                  the body on the ventral surface.
+3     Inter-limb length	      ILL	                Midpoint of the crease on the ventral 
+                                                  surface where the fore-limb connects to 
+                                                  the body, to the midpoint of the crease 
+                                                  on the ventral surface where the hind-limb 
+                                                  connects to the body.
+4     Body width	            BW	                From one lateral side of the body to the 
+                                                  other, where possible at the midpoint of the ILL.
+5     Pelvic width	          PW	                From the midpoint of the crease on the 
+                                                  ventral surface where the left hind limb 
+                                                  connects to the body, to the midpoint of 
+                                                  the crease on the ventral surface where 
+                                                  the right hind limb connects to the body. 
+6     Pelvic height	          PH	                From the top of the dorsal surface were the 
+                                                  PW was measured, to the bottom of the ventral 
+                                                  surface where the PW was measured. 
+7     Head width	            HW	                Widest part of the head from one 
+                                                  dorsal-lateral edge to the other edge.
+8     Head length	            HL	                From the nose tip, to the anterior of the ear.
+9     Snout length	          SN	                From the nasal opening to the anterior of the eye.
+10    Eye diameter	          ED	                From one side of the eye to the other.
+11    Head depth	            HD	                From the top of the tallest part of the 
+                                                  head on the dorsal surface, to the bottom 
+                                                  of the ventral surface under the jaw.
+12    Tail width	            TW	                Measured at the vent, from one 
+                                                  dorsal-lateral edge to the other edge. 
+13    Tail length             TL                  Measured from the vent to the tip of the tail.
+14    Fore-limb length	      FLL	                Measured fully extended from the midpoint
+                                                  of the crease on the ventral surface where 
+                                                  the front limb connects to the body, 
+                                                  to the end of longest toe (claw included).
+15    Front foot	            FFOOT	              From the base of the foot to the end of 
+                                                  the longest toe (claw included).
+16    Lower front limb	      LFL	                Measured from the base of the lower fore limb
+                                                  to the juncture where the limb meets the front foot.
+17    Upper front limb	      UFL	                Measured from the crease on the ventral surface
+                                                  where the fore limb connects to the body, 
+                                                  to the end of the lower front limb.
+18    Hind-limb length	      HLL	                From the midpoint of the crease on the 
+                                                  ventral surface where the hind limb connects
+                                                  to the body, to the end of longest toe (claw included) 
+19    Hind foot	              HFOOT	              From the base of the hind foot to the 
+                                                  end of the longest toe (claw included)
+20    Lower hind limb	        LHL	                Measured from the top of the knee joint
+                                                  to the heel juncture where the limb meets 
+                                                  the front foot.
+21    Upper hind limb	        UHL	                Measured from the crease on the ventral   
+                                                  surface where the hind limb connects to 
+                                                  the body, to the end of the knee.
+
+
+
+Final morphological traits used for phenotypic analyses:
+
+No.     Measurement	            Shorthand   	      Method
+---     -----------             ------------        --------
+3       Interlimb length        Interlimb           see above
+4       Body width              Body_Width          see above
+5       Pelvic width            Pelvic_Width        see above
+6       Pelvic height           Pelvic_Height       see above
+7       Head width              Head_Width          see above
+9       Snout length            Snout_Eye           see above
+10      Eye diameter            Eye_Diameter        see above
+11      Head depth              Head_Depth          see above
+12      Tail width              Tail_Width          see above
+13      Tail length             Tail_Length         see above
+17      Upper front limb        Upper_Arm           see above
+16      Lower front limb        Lower_Arm           see above
+15      Front foot              Hand                see above
+21      Upper hind limb         Upper_Leg           see above
+20      Lower hind limb         Lower_Leg           see above
+19      Hind foot               Foot                see above
+22      Neck length             Neck                Snout_Axilla - Head_Length
+23      Posterior skull         Pos_Skull           Head_Length - (Snout_Eye + Eye_Diameter)
+24      Pelvic gap              Pelvic_Gap          Snout_Vent - (Interlimb + Snout_Axilla)
+
+
+
+```{r CorrPlot, echo=FALSE, eval=T, fig.align="center", out.height='55%', fig.cap="(ref:Correlations)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_MorphTraits_CorrPlot.pdf")
+```
+(ref:Correlations) \small Correlation plot of all morphological traits after removing size via log-shape ratios. Some traits retain strong correlations despite removing the effect of size. Traits are organized according to the morphological module they belong to. Plot generated using *corrplot* [Wei & Simko 2021].
+
+## Modelling Trait Evolution and Disparity
+
+We started by generating mean trait values per species. To remove the effect of size on individual traits (allometry) we then calculated the geometric mean of all traits by species and used this to transform trait measurements into log-shape ratios. This also provided an additional trait *size*. To investigate integrated and modular evolution we estimated correlations among traits and provided this as input for the package *EMMLi* [CITE Goswami & Finarelli]. *EMMLi* also requires *a priori* hypotheses of the assignment of traits to modules. We provided five general hypotheses for model comparison with the most specialized model allowing traits of the head, limbs, body, and tail to evolve as independent modules, and the most restrictive null model lumping all traits into a single module. *EMMLi* also allowed us to compare models in which the correlation coefficient among modules and among traits within modules is either similar or different (see Goswami & Finarelli Fig.2). Once we established the preferred model (head, body, limbs, tail as separate modules with differing inter-- and intramodule correlations) we split our traits into module-specific datasets. 
+
+We designed five models of modular evolution for the Tiliquini skink body plan to test integration and modularity via *EMMLi*. (1) a four-module model (*Body_Tail_Limbs_Head*) in which each of the major body regions is isolated as an independent module; (2) a three-module model (*BodyHead_Tail_Limbs*) where traits of the head and body are combined into a single module; (3) a two-module model (*BodyHeadTail_Limbs*) in which traits of the head, body, and tail are combined into a single module; (4) a three-module model (*Body_Head_TailLimbs*) where tail and limb traits make up a single module; and (5) a two-module model (*BodyHead_TailLimbs*) where body and head traits are one module and tail and limb traits another. 
+
+<!--
+To test for phenotypic shifts in the optima of individual modules we first ran *l1ou*. The Ornstein-Uhlenbeck lasso approach identifies shifts in clades or tips away from the background phenotype, highlighting species or groups of species which deviate significantly from the phenotype of their relatives. We chose to identify phenotypic shifts using the Bayesian Information Criterion (BIC) because of the conservative nature of this method. Shifts in trait evolution and the rate of trait evolution are not necessarily linked [CITE], so to understand the pace of morpholgoical evolution in tiliquines we used *RRPhylo* to estimate branch specific evolutionary rates. This is most often called a "variable-rates model" as implemented in *BayesTraits*, and estimates an individual Brownian Motion rate for each branch of the tree. Branch specific evolutionary rates allowed us to estimate trait values at ancestral nodes and extrapolate this to predict trait values between nodes at any given time using the custom function *trait.at.time*. Given the trait values across all living individuals (ancestors, living taxa, or both) at a time we then extracted measures of phenotypic variation using *extract.variance* to understand the accumulation of trait variance (absolute difference between minimum and maximum trait values), functional diversity (the ratio of the deviation from the trait centroid, see [CITE Villeger et al. 2008]), or disparity (average squared Euclidean distance among all pairs of trait values). Following guidance from [CITE Guillerme & Cooper et al.] we chose disparity (average sum of squares) as our trait metric because of how it distills the density of morphospace occupation while avoiding the coarseness of metrics like variance and the sensitivity of metrics like volume. 
+-->
+
+
+```{r ModelFits, echo=FALSE, eval=T, fig.align="center", out.height='80%', fig.cap="(ref:SFMF)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_MorphTraits_pulsR_scaledVarRates.pdf")
+```
+(ref:SFMF) \small Comparative model fits for each of 19 morphological traits. Upper figure summarizes AICw by model type (BM, EB, 'Jump', OU, or VarRates), with the preferred model indicated above the column. Model preference required AICw of the best fitting model to be at least twice that of the next best fitting model. Bottom figure similarly shows model preference but with 'Jump' models expanded into their four alternative models (BMJN, BMNIG, JN, NIG) indicated by black outlines. 
+
+
+
+## Concatenation and the Anomaly Zone
+
+```{r Concatenated, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF3)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_Concatenated_RAxML.pdf")
+```
+(ref:SF3) \small The Tiliquini phylogeny estimated from a concatenated and locus-partitioned alignment is likely misled by branches which fall into the anomaly zone. Colored branches correspond to the anomaly zone cladogram below and indicate edges which differ from the coalescent species tree. 
+
+```{r AnomalyZone, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF4)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_AnomalyZone_Cladogram.pdf")
+```
+(ref:SF4) \small Colored branches indicate edges that fall within the anomaly zone and may provide misleading results under concatenation. We used *Anomaly Finder* [CITE Linkem et al. 2016], using the script from [Chafin et al. 2021](https://github.com/tkchafin/anomaly_zone) 
+
+## Topology Tests
+
+We used a series of topology tests in IQ-TREE to investigate two nodes which bear taxonomic implications. We used the concatenated alignment and simplified phylogenies as the input. In each case the preferred topology is presented first followed by the two alternative resolutions to the bipartition. Significant differences are denoted by (-), and show decisive preference for the coalescent species tree topology in comparison to alternative resolutions, reinforcing molecular phylogenetic evidence for the paraphyly of both *Cyclodomorphus* and *Lissolepis*. 
+
+---
+
+Topology test for the paraphyly of *Cyclodomorphus* with regards to *Tiliqua*.  
+
+\scriptsize
+Tree topologies:  
+
+1. (Egernia,(C.maximus,(T.gigas,C.michaeli); : coalescent/concatenated species trees
+2. (Egernia,(C.michaeli,(T.gigas,C.maximus); : alternative *Cyclodomorphus* paraphyly
+3. (Egernia,(T.gigas,(C.maximus,C.michaeli); : *Cyclodomorphus* monophyly
+
+
+
+Tree      logL            deltaL   bp-RELL    p-KH     p-SH      p-WKH    p-WSH       c-ELW       p-AU
+----      ----            ------   -------    ----     ----      -----    -----       -----       ----
+  1.      -1142007.338    0        0.97(+)    0.98(+)  1(+)      0.98(+)  0.993(+)    0.971(+)    0.981(+)
+  2.      -1142067.499    60.161   0.03(-)    0.02(-)  0.026(-)  0.02(-)  0.039(-)    0.0294(-)   0.021(-)
+  3.      -1142110.488    103.15   0(-)       0(-)     0(-)      0(-)     0(-)        2.08e-10(-) 1.79e-05(-)
+  
+\normalsize
+
+---
+
+Topology tests for the paraphyly of *Lissolepis*.  
+
+\scriptsize
+Tree topologies:  
+
+1. (Outgroup,((Lis.luctuosa,E.striolata),(Lis.coventryi,Lio._inornata))); : coalescent species tree
+2. (Outgroup,(Lis.luctuosa,(E.striolata,(Lis.coventryi,Lio.inornata)))); : concatenated species tree
+3. (Outgroup,((Lis.coventryi,Lis.luctuosa),(Lio.inornata,E.striolata))); : *Lissolepis* monophyly
+
+Tree      logL              deltaL       bp-RELL    p-KH     p-SH       p-WKH    p-WSH       c-ELW          p-AU
+----      ----              ------       -------    ----     ----       -----    -----       -----          -----
+  1.      -1326723.218           0       1(+)       1(+)     1(+)       1(+)     1(+)        1(+)           0.995(+)
+  2.      -1326798.358      75.141       0(-)       0(-)     0.122(+)   0(-)     0(-)        8.47e-07(-)    0.00491(-)
+  3.      -1327315.329      592.11       0(-)       0(-)     0(-)       0(-)     0(-)        1.9e-174(-)    3.58e-05(-)
+  
+\normalsize
+
+
+\pagebreak
+
+
+```{r EmpSimAll, echo=FALSE, eval=T, out.height = '85%', fig.align="center", fig.cap="(ref:SF6)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_LSRTraits_Simulations.pdf")
+```
+(ref:SF6) \small Empirical phenotypes generally conform to expected trait values of data simulated under uncorrelated evolution, showing limited ability of selection to exceed null expectations in Tiliquini skinks. Circles represent empirical trait values per species, colored by genus, with grey representing ancestral states. Transformed traits size corrected by log-shape ratios are plotted against 500 simulated datasets for each trait. Simulated traits are plotted as a grey violin plot summarizing the distribution of trait values, with 5%, 50%, and 95% quantiles plotted as horizontal lines. Simulations were generated with MVMORPH using as input the theta--root and sigma values estimated by MVMORPH assuming a constant-rate Brownian Motion model. 
+
+
+
+```{r EmpSimHead, echo=FALSE, eval=T, out.height = '100%', fig.align="center", fig.cap="(ref:SF7)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_Head_EmpSim_Hex.pdf")
+```
+(ref:SF7) \small Empirical phenotypes generally conform to expected trait values of data simulated under uncorrelated evolution, showing limited ability of selection to exceed null expectations in Tiliquini skinks. Hexagonal heatplot in background shows the distribution of trait values from 500 datasets simulated under rates from empirical estimates. Warmer colors indicate greater density of simulated points. Circular points indicate empirical trait values and are colored according to the genus the belong to. The dotted ellipse contains 95% of the simulated data (95% confidence interval).  
+
+```{r EmpSimLimb, echo=FALSE, eval=T, out.height = '85%', fig.align="center", fig.cap="(ref:SF8)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_Limb_EmpSim_Hex.pdf")
+```
+(ref:SF8) \small Empirical phenotypes generally conform to expected trait values of data simulated under uncorrelated evolution, showing limited ability of selection to exceed null expectations in Tiliquini skinks. Hexagonal heatplot in background shows the distribution of trait values from 500 datasets simulated under rates from empirical estimates. Warmer colors indicate greater density of simulated points. Circular points indicate empirical trait values and are colored according to the genus the belong to. The dotted ellipse contains 95% of the simulated data (95% confidence interval). 
+
+```{r EmpSimBody, echo=FALSE, eval=T, out.height = '100%', fig.align="center", fig.cap="(ref:SF9)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_Body_EmpSim_Hex.pdf")
+```
+(ref:SF9) \small Empirical phenotypes generally conform to expected trait values of data simulated under uncorrelated evolution, showing limited ability of selection to exceed null expectations in Tiliquini skinks. Hexagonal heatplot in background shows the distribution of trait values from 500 datasets simulated under rates from empirical estimates. Warmer colors indicate greater density of simulated points. Circular points indicate empirical trait values and are colored according to the genus the belong to. The dotted ellipse contains 95% of the simulated data (95% confidence interval). 
+
+```{r EmpSimTail, echo=FALSE, eval=T, out.height = '100%', fig.align="center", fig.cap="(ref:SF10)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_Tail_EmpSim_Hex.pdf")
+```
+(ref:SF10) \small Empirical phenotypes generally conform to expected trait values of data simulated under uncorrelated evolution, showing limited ability of selection to exceed null expectations in Tiliquini skinks. Hexagonal heatplot in background shows the distribution of trait values from 500 datasets simulated under rates from empirical estimates. Warmer colors indicate greater density of simulated points. Circular points indicate empirical trait values and are colored according to the genus the belong to. The dotted ellipse contains 95% of the simulated data (95% confidence interval). 
+
+```{r TraitVRTrees, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF11a)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/BayesTraits_VarRates_MorphTraits_Trees_ALL.pdf")
+```
+(ref:SF11a) \small Pulses in rates of phenotypic evolution are common across tiliquine morphological traits. Species trees have been transformed for each trait with branch lengths adjusted relative to the estimated Variable Rates median scalar. Branches are colored according to mean estimated sigma value. Circles indicate significant rate shifts: empty circles represent shifts which appeared in > 70% of the posterior samples and in which the mean estimated scalar > 2; black circles represent shifts which appeared in >95% of the posterior samples and in which the mean estimated scalar > 2 corresponding to instances of "positive phenotypic selection" per Baker et al. 2017. 
+
+```{r TraitRates, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF11)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_MorphTraits_RateThroughTime_QT_BayesTraits.pdf")
+```
+(ref:SF11) \small Mean evolutionary rates through time for all morphological traits with envelopes containing 95% quantiles. 
+
+```{r TraitDisparity, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF12)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_MorphTraits_VarianceThroughTime.pdf")
+```
+(ref:SF12) \small Disparity (variance) through time for morphological traits is often lower than expected under BM for long periods of time early in the evolution of this group. Empirical trends are shown in black with 95% quantiles of disparity for simulated datasets in grey. 
+
+```{r TraitDiffSlopes, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF12b)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_MorphTraits_DiffSlopes_VR.pdf")
+```
+(ref:SF12b) \small Individual traits show varied temporal patterns of morphological expansion and niche packing. Solid green line shows the mean trend and green envelope shows the 95% quantiles.
+
+
+
+```{r CFxBL, echo=FALSE, eval=T, out.height = '100%', fig.align="center", fig.cap="(ref:SF13)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_MCMCtree_sCFxgCF_sCFxBL_gCFxBL.pdf")
+```
+(ref:SF13) \small Concordance factors show a positive relationship with increasing branch length. Both site-- and gene concordance factors increase support with increasing branch lengths (time), but show saturation (sCF=100, gCF=100) on branches >=10 million years long.
+
+```{r NodeNumbers, echo=FALSE, eval=T, out.height = '150%', fig.align="center", fig.cap="(ref:SF19)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_NodeLabels.pdf")
+```
+(ref:SF19) \small Node numbers of ASTRAL species tree. 
+
+```{r PCALoadings, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF20)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_PCA_Loadings.pdf")
+```
+(ref:SF20) \small PCA loadings for 19 focal traits across all Tiliquini skinks. The first three principal components account for >98% of the variance, and are primarily explained by tail length, interlimb length, and size. 
+
+```{r PCALoadingsModules, echo=FALSE, eval=T, out.height = '100%', fig.align="center", fig.cap="(ref:SF21)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_PCA_Loadings_Modules.pdf")
+```
+(ref:SF21) \small PCA loadings for 19 focal traits analyzed by module across all Tiliquini skinks.
+
+```{r BiplotsModules, echo=FALSE, eval=T, out.height = '90%', fig.align="center", fig.cap="(ref:SF22)"}
+knitr::include_graphics("/Users/ianbrennan/Documents/GitHub/Tiliquini/Figures/Egerniinae_InnovationElaboration_Modules.pdf")
+```
+(ref:SF22) \small Biplots of the first two PC axes from analyses of modules. 
+
+
+\pagebreak
+
+<!--
+## Taxonomic Changes
+
++ Elevate *Liopholis margaretae personata* to *Liopholis personata*
++ Do not elevate the *Liopholis melanops* subspecies:
+  - *Liopholis melanops elongatus* to *Liopholis elongatus*
+  - *Liopholis melanops siticulosus* to *Liopholis siticulosus*
++ Confirm synonymizing *Egernia carinata* into *Egernia richardi*
++ Elevate *Egernia stokesii* subspecies:
+  - *Egernia stokesii zellingi* to *Egernia zellingi*
+  - *Egernia stokesii badia* to *Egernia badia*
+  - is this too soon without *Egernia stokesii stokesii* included?
++ New generic name for *Lissolepis coventryi*
+  - something swamp related?
+  - *Paluarius* (palus--latin for swamp; -arius--latin for keeper of)
++ New generic name for *Cyclodomorphus maximus* group
+  - something about the elongated nature?
+  - *Tenuiseps* (tenuis--thin; seps--lizard/snake)
+
+\pagebreak
+-->
+
+# References
+

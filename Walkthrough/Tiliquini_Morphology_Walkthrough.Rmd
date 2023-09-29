@@ -1,0 +1,2158 @@
+---
+title: "Egernia Morphological Evolution"
+date: "Ian G. Brennan: `r format(Sys.time(), '%B, %Y')`"
+output:
+  html_document:
+    toc: true
+    toc_depth: 3
+---
+
+```{r setup, include=FALSE}
+require("knitr")
+knitr::opts_chunk$set(echo = TRUE)
+
+# IT'S IMPORTANT TO CHANGE THIS TO THE LOCATION OF YOUR DIRECTORY!
+opts_knit$set(root.dir = "/Users/ianbrennan/Documents/GitHub/Tiliquini/Data")
+#opts_knit$set(root.dir = "/Users/Ian/Documents/GitHub/Egernia_Evolution/Data")
+```
+
+Below is the general workflow for replicating our analyses of trait evolution in Tiliquini skinks. While we provide the scripts to redo everything from scratch, we also include Rdata files that will give you the output from model fits, objects, etc., to speed up the process. 
+
+
+Load necessary packages
+```{r, eval=F, echo=T, message=F, warning=F, include=F}
+library(dplyr)
+library(ggplot2)
+library(ggfortify)
+library(plotly)
+library(treedata.table)
+library(phytools)
+library(RColorBrewer)
+library(tidyr)
+library(corrplot)
+library(RPANDA)
+library(l1ou)
+library(RRphylo)
+library(dispRity)
+library(Rmisc)
+library(mvMORPH)
+library(ggforce)
+library(concaveman)
+```
+
+Load necessary packages
+```{r, eval=T, echo=T, message=F, warning=F}
+library(ape)
+library(phytools)
+library(ggplot2)
+library(patchwork)
+library(dplyr)
+```
+
+
+Let's save some time and start by loading our data.
+```{r, eval=T}
+load("Egernia_Data.RData", verbose=T)
+plot(egernia.tree, cex=0.3); axisPhylo()
+```
+
+
+We'll also quickly put all our traits into a single data frame for use later.
+```{r, eval}
+all.traits <- bind_cols(all.modules$head, all.modules$body, all.modules$tail, all.modules$limb,
+                        all.modules$size, all.modules$neck, all.modules$eye)
+```
+
+
+
+And load some functions we'll want later
+```{r, message=F}
+source("../Scripts/trait.at.time.R")
+```
+
+
+\pagebreak
+
+---
+
+## Determining Morphological Modules
+
+Now let's think about how different modules are integrated. 
+
+We will create some models to test the modularity hypotheses.  
+We'll use the R package *EMMLi* to identify morphological modules of the lizard body.
+```{r}
+library(EMMLi)
+```
+
+
+We've designed some basic models to test.  
+**Remember**: no module can be made up of only a single trait! If it is, code it as NA
+```{r, eval=F}
+model.small <- read.csv("Morph_Module_Models.csv", header=T)
+```
+
+```{r, eval=F}
+res <- EMMLi(corr = corr.small, 
+      N_sample = 56, 
+      mod = model.small,
+      abs = T,
+      pprob = 0.05); 
+res
+```
+
+Based on our preferred module model we have saved our traits into the *all.modules* object.  
+The preferred model corresponds to 4 modules (head, body, tail, limb). Three traits (neck, eye, pelvis) are unintegrated and do not fit among the other modules. In the process of size-correcting our traits we also generate a new trait *size*, so we'll keep that. 
+```{r, eval=T}
+names(all.modules)
+head(all.modules$head)
+```
+
+\pagebreak
+
+---
+
+## Running *l1ou* on Morphological Modules
+
+We might want to look at fitting multi-OU models to our modules. Let's fit l1ou to all the modules and save the output.
+```{r, eval=F}
+l1ou.modules <- list(); l1ou.trees <- list()
+#for (y in 1:length(all.modules)){
+for (y in 1:4){
+  # Align the trait data and tree
+  trait.data <- adjust_data(egernia.tree, all.modules[[y]])
+  #### Estimate the number and position of shifts a priori 
+  fit <- estimate_shift_configuration(trait.data$tree, trait.data$Y, 
+                                      nCores=8, quietly=F, criterion="AIC") 
+  # if you want to do only a single trait, 'data$Y[,x]'
+  # test for convergent regimes if you'd like (this is slow, and not really necessary)
+  #shift.fit <- estimate_convergent_regimes(fit, nCores=8, criterion="BIC")
+  # save the results to a list
+  #l1ou.modules[[y]] <- shift.fit
+  l1ou.modules[[y]] <- fit
+  # save the simmap trees to a list
+  #l1ou.trees[[y]] <- shifts.to.simmap.l1ou(shift.fit)
+  l1ou.trees[[y]] <- shifts.to.simmap.l1ou(fit)
+  #plot(l1ou.trees[[y]])
+}
+names(l1ou.modules) <- names(all.modules)[1:4]
+names(l1ou.trees) <- names(all.modules)[1:4]
+```
+If you ran the above, save these results externally
+```{r, eval=F}
+save(l1ou.modules, l1ou.trees, file="l1ou_MorphModules.RData")
+```
+
+If you don't have the time to run these, load them instead
+```{r}
+load("l1ou_MorphModules.RData", verbose=T)
+```
+
+Plot all the trees with shifts
+```{r, message=F}
+source("../Scripts/shifts.to.simmap.l1ou.R")
+par(mfrow=c(3,3))
+for(j in 1:length(l1ou.trees)){
+  plotColorSimmap(l1ou.trees[[j]]); axisPhylo(); title(paste(names(l1ou.trees)[[j]], (ncol(l1ou.trees[[j]]$mapped.edge)-1), "shifts"))
+}
+```
+
+
+\pagebreak
+
+---
+
+# Fitting Continuous Models of Trait Evolution
+
+## Common and Lévy Models
+
+We'll start by fitting a standard set of comparative models (BM, OU, EB) and Levy models in *pulsR*.  
+Code for running those models across all traits individually is contained in [RUN_pulsR.R](../Scripts/RUN_pulsR.R). 
+
+
+## Variable Rates Model
+
+We can use BayesTraits to estimate branch specific rates of trait evolution. This method uses a variable-rates Brownian Motion model, and is run externally to R. We can read in our results though. 
+The next step is to run BayesTraits across all the traits individually. Like any Bayesian method, multiple independent chains should be run and compared to assess convergence. 
+
+Begin by saving each trait to a BayesTraits formatted file (following [SaveTraitsToFiles_BayesTraits.R](../Scripts/SaveTraitsToFiles_BayesTraits.R))
+```{r, eval=F}
+for(j in 1:length(all.modules)){
+  curr.mod <- all.modules[[j]]
+  for (k in 1:length(curr.mod)){
+    trait <- select(curr.mod, k)
+    tname <- colnames(trait)
+    filename <- paste0("~/Desktop/", tname, ".txt")
+    write.table(trait, file=filename, sep=" ", quote=F, col.names=F)
+  }
+}
+```
+
+Format your BayesTraits control file.
+```{bash, eval=F}
+7
+2
+VarRates
+Burnin 10000000
+Iterations 110000000
+Run
+```
+
+Once you've run all those analyses and confirmed convergence/stationarity, the next step will be to process the BayesTraits outputs. This can be slightly complicated without a helper file. Use the [process_PPP]() function in [plotting_BayesTraits.R](../Scripts/plotting_BayesTraits.R) to process the outputs. You can do this following the [RUN_BayesTraits_VarRates_Likelihoods.R](../Scripts/RUN_BayesTraits_VarRates_Likelihoods.R) script. The same script will also allow you to extract comparable AIC values for model comparison. 
+
+## Model Comparison 
+
+Now that we've fit all the models, get the model fits together so we can compare them. 
+
+```{r, eval=T}
+load("pulsR_Results.Rdata", verbose=T)
+```
+Since we have the objects already, plot them here. 
+```{r}
+# plot the 'type'  results (lumps levy models together)
+aicw.types.plot <- ggplot(aicw.df, aes(fill=model, y=aicw, x=trait)) + 
+  geom_bar(position="stack", stat="identity") + theme_classic() + 
+  scale_fill_brewer(palette="RdYlBu") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="bottom")
+
+
+# plot all the AICw (plots all levy models separately)
+aicw.all.plot <- ggplot(aicw.all.df, aes(fill=model, y=aicw, x=trait)) + 
+  geom_bar(position="stack", stat="identity") + theme_classic() + 
+  scale_fill_brewer(palette="RdYlBu") +
+  theme(axis.text.x = element_text(angle = 45, hjust=1), legend.position="bottom")
+
+# plot the two together
+aicw.types.plot / aicw.all.plot
+
+```
+
+---
+
+# Visualizing Variable Rates Models
+
+We will want to be able to visualize the results of our VR models.  
+```{r}
+load("BayesTraits_processed_traits.RData", verbose=T)
+names(all.BT)
+```
+
+Here's an explanation of what each of those elements is:  
+1. **all.trees** holds a tree for each trait. The tree is your input tree, rescaled by the mean estimated sigma (rate) value per branch (Mean.SigV in BayesTraits terms).  
+2. **all.sig** holds the mean sigma value per branch in a vector (?), this is the value each branch above was scaled by.  
+3. **all.res** holds a data frame for each trait. The data frame includes the node and branch information, rate info, etc.   
+4. **scalar.trees** holds a tree for each trait. The tree is your input tree, rescaled by the median scalar r (Median.Scalar in BayesTraits terms).  
+5. **mean.scalar.trees** holds a tree for each trait. The tree is your input tree, rescaled by the mean scalar r (Mean.Scalar in BayesTraits terms).  
+6. **rate.trees** holds a tree for each trait. The tree is your input tree, with each branch rescaled to the mean estimated sigma value (Mean.SigV).  
+
+
+## Plot BayesTraits Trees with Shifts
+
+To visualize the rates and shifts across the tree use the [plot.VarRates.tree]() function.
+```{r, eval=T}
+source("../Scripts/plotting_BayesTraits.R")
+plot.VarRates.tree(BT = all.BT$all.res$BodyWidth, # res object for focal trait
+                   phy = all.BT$scalar.trees$BodyWidth, # tree for focal trait
+                   col.palette = "YlGnBu", # choose your color palette
+                   legend = T, # want a rate legend included?
+                   tree.type = "phylogram", # tree shape
+                   log.rates = T, # should rates be logged (probably)
+                   trait = "Body Width", # name of the trait
+                   outline = F, # black outline on branches for light colors
+                   pos.selection = T, # indicate positive selection (r >= 10)
+                   shift.rates = T) # indicate shifted rates (r >= 2)
+```
+
+
+We can also apply this across all the traits simultaneously. 
+```{r, eval=F}
+# plot all the trees with edges colored by rates
+par(mfrow=c(2,2))
+# plot the scalar transformed trees
+for(j in 1:length(all.BT$all.trees)){plot.VarRates.tree(BT=all.BT$all.res[[j]], phy=all.BT$scalar.trees[[j]], col.palette="YlOrRd", legend=F, tree.type="phylogram", log.rates=T, trait=names(all.BT$all.res)[[j]], outline=F, pos.selection=T, shift.rates=T)}
+```
+
+
+## Plot Rate and Disparity Through Time
+
+Start by reading in the Median Scalar Trees (all.BT$scalar.trees) from file if you'd like
+```{r}
+all.trees <- read.nexus(file="../Trees/BayesTraits_VarRates_Egerniinae_MorphTraits_Scalar.trees")
+plot(all.trees$Body_Width, show.tip.label = F); axisPhylo()
+# sort the order of the trees to match the columns
+all.trees <- all.trees[colnames(all.traits)]
+```
+
+
+
+We'll extract the ancestral trait values for each trait
+```{r, eval=F}
+anc.traits <- NULL; anc.all.traits <- NULL
+for (k in 1:length(all.trees)){
+  base.trait <- all.traits[,k]; names(base.trait) <- rownames(all.traits)
+  anc.traits[[k]] <- fastAnc(all.trees[[k]], base.trait)
+  anc.all.traits[[k]] <- c(base.trait, anc.traits[[k]])
+  #phenogram(egernia.tree, x=c(base.trait, anc.trait), fsize=0.5)
+}
+names(anc.traits) <- names(all.trees)
+names(anc.all.traits) <- names(all.trees)
+```
+
+Or, we can just read in all these bits from file.
+```{r}
+load("Tiliquini_Ancestral_MorphTraits.Rdata", verbose=T)
+```
+**all.traits** is a data frame of the traits for all living taxa.  
+**anc.traits** is a named list of vectors of ancestral traits.   
+**anc.all.traits** is a named list of vectors of traits of living taxa and ancestors.  
+**all.trees** is a named multiPhylo object of Median Scalar trees.  
+
+Anyway, let's move on and get the trait value along branches at given time intervals (here 0.25 million years). This will allow us to plot the traits through time.
+```{r}
+all.anc <- lapply(1:length(anc.all.traits), function(x) trait.at.time(timeslices=0.25, phy=egernia.tree, trait.vector=anc.all.traits[[x]], plot=F))
+names(all.anc) <- names(anc.all.traits)
+# have a look at what the data look like
+head(all.anc$Head_Width)
+```
+
+Next we can extract the disparity across all living branches at given time intervals (same as the rate above). I call this **Disparity-at-Time**. 
+```{r}
+emp.dis <- lapply(1:length(all.anc), function(x) extract.variance(all.anc[[x]], plot = FALSE, metric = "disparity"))
+names(emp.dis) <- names(all.anc)
+emp.dis <- lapply(1:length(emp.dis), function(x) emp.dis[[x]] <- cbind(emp.dis[[x]], trait=names(emp.dis)[[x]]))
+names(emp.dis) <- names(all.anc)
+emp.dis.df <- NULL
+for(k in 1:length(emp.dis)){emp.dis.df <- rbind(emp.dis.df, emp.dis[[k]])}
+```
+
+Show a single disparity plot
+```{r}
+plot(emp.dis$Head_Width$measure ~ emp.dis$Head_Width$time, 
+         xlab="Time", ylab=paste("Total", "Disparity"), type="l", main="Head Width")
+    #abline(v=30.06, col="#ABDDA4", lty=3, lwd=3)
+    plot(emp.dis$Head_Width$measure.rich ~ emp.dis$Head_Width$time, 
+         xlab="Time", ylab=paste("Relative", "Disparity"), type="l", main="Head Width")
+    layout(matrix(1))
+```
+
+
+Now that we have the disparity values through time we can plot them for each trait. 
+```{r}
+ggplot(emp.dis.df) +
+  geom_line(aes(x=time, y=measure, color=trait)) +
+  facet_wrap(~trait, scales="free") + 
+  theme_classic() + theme(legend.position="none")
+```
+
+
+Ok let's apply the same principles to the rates. I'll call this **Rate-at-Time**
+```{r}
+# annoying, but to get the right order we have to rename the rate objects
+sig.BT <- all.BT$all.sig
+# reorder the objects
+for(k in 1:length(sig.BT)){names(sig.BT[[k]])[1:56] <- egernia.tree$tip.label}
+for(k in 1:length(sig.BT)){sig.BT[[k]] <- append(sig.BT[[k]], 0, after=Ntip(egernia.tree))}
+for(k in 1:length(sig.BT)){names(sig.BT[[k]])[[57]] <- 57}
+# actually extract the rates-at-time
+all.RaT <- lapply(1:length(sig.BT), function(x) rate.at.time(timeslices=0.25, phy=egernia.tree, rate.vector=sig.BT[[x]]))
+names(all.RaT) <- names(sig.BT)
+# extract the 95% quantile around the estimated rate
+all.rates <- lapply(1:length(all.RaT), function(x) extract.stat(all.RaT[[x]], stat="mean", plot = F, range="quantile"))
+names(all.rates) <- names(all.RaT)
+# combine the mean and quantiles into a single data frame
+all.rates <- lapply(1:length(all.rates), function(x) all.rates[[x]] <- cbind(all.rates[[x]], trait=names(all.rates)[[x]]))
+names(all.rates) <- names(all.RaT)
+# reshape into a new dataframe
+all.rates.df <- NULL
+for(k in 1:length(all.rates)){all.rates.df <- rbind(all.rates.df, all.rates[[k]])}
+```
+
+Now that we have the rates through time for each trait, plot it. 
+```{r}
+ggplot(all.rates.df) +
+  geom_ribbon(aes(x=time, ymin=`5%`, ymax=`95%`, fill=trait, alpha=0.5)) +
+  geom_line(aes(x=time, y=rate, color=trait)) +
+  facet_wrap(~trait, scales="free") + 
+  theme_classic() + theme(legend.position="none")
+```
+
+Here we can compare the rates through time for several traits. As an example I show the rates for the head module traits. This follows the right panel of Figure 3. 
+```{r, message=F, warning=F}
+library(ggbreak)
+all.rates.df$`5%`[which(all.rates.df$`5%`<=0)] <- 0
+head.rates.df <- filter(all.rates.df, trait %in% c("HeadDepth","HeadWidth","PosSkull","EyeDiameter"))
+p1 <- ggplot(head.rates.df) +
+  geom_ribbon(aes(x=rev(time), ymin=`5%`, ymax=`95%`, fill=trait), alpha=0.1) +
+  geom_line(aes(x=rev(time), y=rate, color=trait)) +
+  scale_color_brewer(palette="Spectral") +
+  scale_fill_brewer(palette="Spectral") +
+  scale_x_reverse() +
+  #scale_y_log() +
+  xlab("Time (Ma)") + ylab("Evolutionary Rate") +
+  theme_classic() + theme(legend.position="bottom")
+
+p1
+```
+
+
+
+
+
+Up until now we've been looking at rates and disparity of individual traits. We'll shift now to looking at trends in modules (head, body, tail, limbs). 
+
+```{r}
+source("../Scripts/rate.trajectory.R")
+load("BayesTraits_processed_modules.RData", verbose=T)
+names(all.BT)
+```
+
+```{r, warning=F, message=F}
+# Rate Trajectory and Rate-to-Node for HEAD
+HEAD.anc.module <- data.frame(Head_Width = anc.all.traits$Head_Width, 
+                              Snout_Eye = anc.all.traits$Snout_Eye, 
+                              Head_Depth = anc.all.traits$Head_Depth, 
+                              Pos_Skull = anc.all.traits$Pos_Skull)
+
+HEAD.plot <- rate.trajectory.BT.module(tree = egernia.tree, module = HEAD.anc.module,
+                                       PPP.all.res = all.BT$all.res$Head,
+                                       tip.spread = c("Tiliqua_rugosa","Tiliqua_scincoides"),
+                                       focus = "clade", psize=3, lsize=2, background.color="grey",
+                                       gimme.the.data=F, inset=T)
+```
+```{r, echo=F}
+plot(HEAD.plot)
+```
+
+
+We've run each of these modules through [rate.trajectory]() in the script [PLOT_rate.trajectory.R](../Scripts/PLOT_rate.trajectory.R). 
+
+```{r}
+load("rate.trajectories.RData", verbose=T)
+load("BayesTraits_ancestral_modules.RData", verbose=T)
+names(rate.list); names(anc.modules)
+```
+
+The [rate.list]() list is made up of processed data frames which hold information about the tree, BayesTraits results (rate/scalar estimates, shift frequency in posterior, etc.), color scheme.  
+The [anc.modules]() list is made up of data frames holding the observed and estimated trait values for all tips and internal nodes of the tree. 
+
+Using the [rate.trajectory.BT.module]() function we can plot a traitgram/phenogram style with branches colored by evolutionary rate for any module and any clade (set of tips) or single tip of the tree. I'll show you how. 
+
+
+Here's a traitgram for the limb module highlighting the trajectory of the *Tiliqua/Cyclodomorphus* clade. You will notice the dark color on the stem branch of this clade suggesting a shift in evolutionary rate.
+```{r}
+rate.trajectory.BT.module(tree = egernia.tree, module = anc.modules$limb,
+                                 PPP.all.res = rate.list$limb,
+                                 tip.spread = c("Tiliqua_rugosa","Cyclodomorphus_maximus"),
+                                 focus = "clade", psize=3, lsize=2, background.color="grey",
+                                 gimme.the.data=F, inset=T)
+```
+
+We can limit this to just a single tip, say *Tiliqua rugosa* like this:
+```{r}
+rate.trajectory.BT.module(tree = egernia.tree, module = anc.modules$limb,
+                                 PPP.all.res = rate.list$limb,
+                                 tip.spread = c("Tiliqua_rugosa"),
+                                 focus = "tip", psize=3, lsize=2, background.color="grey",
+                                 gimme.the.data=F, inset=T)
+```
+
+
+We can also pick an entirely different clade, one that shows no sign of rate shifts. You'll notice how consistent the rates are. 
+```{r}
+rate.trajectory.BT.module(tree = egernia.tree, module = anc.modules$limb,
+                                 PPP.all.res = rate.list$limb,
+                                 tip.spread = c("Liopholis_whitii", "Liopholis_personata"),
+                                 focus = "clade", psize=3, lsize=2, background.color="grey",
+                                 gimme.the.data=F, inset=T)
+```
+
+
+
+It's great that we can show the rates along individual branches, but we might want to look at the rates of branches with inferred rate shifts against the background rate. 
+
+Since we already have the processed BayesTraits output files (in [rate.list]()), we can just plug them into the [rate.to.node.BT]() function. 
+
+Head Module
+```{r}
+rate.to.node.BT(phy=egernia.tree, PPP.obj=rate.list$head, psize=3, lsize=2, log.rates=T, col.palette="YlOrRd")
+```
+Body Module
+```{r}
+rate.to.node.BT(phy=egernia.tree, PPP.obj=rate.list$body, psize=3, lsize=2, log.rates=T, col.palette="YlOrRd")
+```
+
+Tail Module
+```{r}
+rate.to.node.BT(phy=egernia.tree, PPP.obj=rate.list$tail, psize=3, lsize=2, log.rates=T, col.palette="YlOrRd")
+```
+
+
+Last we'll do the morphotrajectory and sim-to-node plots.
+```{r, message=F, warning=F}
+source("../Scripts/morphotrajectory.R")
+```
+
+
+
+This will allow us to visualize the expansion of morphospace by comparing our empirical observations (and estimated ancestral values) against a set of Brownian Motion simulations. 
+
+We can start by looking at a remarkable example of *Egernia stokesii* tail proportions. Here we can see that the combination of tail traits for this species fall outside what we would expect from BM. 
+```{r, message=F, warning=F}
+sim.to.node(phy=egernia.tree, VRphy=all.BT$scalar.trees$Tail, 
+            trait=all.modules$tail[,c("Tail_Length","Tail_Width")],
+            tip="Egernia_zellingi", sim.num=500)
+```
+
+In comparison we can plot what the evolution of tail traits looks like for something quite standard, like *Liopholis whitii*. Here we see that the tail traits for this lizard are quite conservative, compared to the eovlutionary possibility under Brownian Motion. 
+```{r, message=F, warning=F}
+sim.to.node(phy=egernia.tree, VRphy=all.BT$scalar.trees$Tail, 
+            trait=all.modules$tail[,c("Tail_Length","Tail_Width")],
+            tip="Liopholis_whitii", sim.num=500)
+```
+
+```{r, eval=F}
+# RUN_BayesTraits_VarRates_Output.R
+```
+
+
+<!--
+
+
+
+
+
+
+
+
+
+
+
+
+We can use *RRphylo* to estimate branch specific rates of trait evolution. This method using a variable-rates Brownian Motion model to estimate individual rates per branch in the tree. This is likely over-parameterized, but perhaps more similar to reality than a constant-rate BM model or alternative. 
+
+*RRphylo* will also estimate trait values at ancestral nodes automatically. From there, we can further estimate trait values along branches to get an idea of trait variance (disparity) through time.
+
+Let's mess around with *RRphylo* a bit.  
+We should be able to get branch-specific rates of trait evolution without having to use BayesTraits
+```{r, eval=F}
+library(RRphylo)
+source("../Scripts/plotting.RRphylo.R")
+```
+```{r, eval=F}
+mod.head <- as.matrix(mod.head)
+```
+
+The data should already be sorted to match the order of the phylogeny, but if not, do that now.
+```{r, eval=F}
+mod.head <- mod.head[match(egernia.tree$tip.label, rownames(mod.head)), ]
+```
+
+Run the RRphylo function to get the ancestral states (we'll use them as covariates)
+```{r, eval=F}
+RRhead <- RRphylo(tree = egernia.tree, y = mod.head)
+```
+
+Create the covariate vector: extract phenotypic character estimates at nodes from the RR object ($aces) and collate them to the empirical trait vector
+```{r, eval=F}
+head.cov <- rbind(RRhead$aces, mod.head)
+head(head.cov)
+```
+
+Run the RRphylo function again, using the ancestral and empirical states as a covariate
+```{r, eval=F}
+RRhead.cov <- RRphylo(tree = egernia.tree, y = mod.head, cov = head.cov)
+```
+
+And visualize it
+```{r, eval=F}
+vis.traits <- head.cov[,1]
+names(vis.traits) <- rownames(head.cov)
+phenogram(head.simmap, vis.traits)
+```
+
+Now we'll try and identify shifts without a-priori knowledge
+```{r, eval=F}
+RRhead.shift <- search.shift(RRhead, status.type="clade", foldername=getwd(), f=1)
+filter(RRhead.shift$all.clades, 
+       RRhead.shift$all.clades$p.value >= 0.975 | 
+         RRhead.shift$all.clades$p.value <= 0.025)
+```
+
+
+
+Plot the rates from RRphylo
+```{r, eval=F}
+plot.RRrates(RRhead, col.palette="RdYlBu", legend=T, tree.type="phylogram")
+```
+
+
+Plot each trait separately
+```{r, eval=F}
+plot.RRrates.multi(RRhead, col.palette = "RdYlBu", legend = F, tree.type = "phylogram")
+```
+
+
+Plot the shift configuration from RRphylo directly onto the phylogeny
+```{r, eval=F}
+plot.RRshift(RRhead, RRhead.shift, scale.shift=F, new.plot=T)
+```
+
+
+```{r, eval=F}
+RRhead.conv <- search.conv(RR = RRhead, y = mod.head, min.dim = 5, min.dist = "time1", foldername=getwd())
+```
+
+
+
+
+### Extracting Trait Values Along Branches
+
+Start by reading in a function that will extract trait values along edges under the assumption of Brownian Motion (trait variance is strictly a function of time). There are several functions contained within, and we'll use them below.
+```{r, message=F, eval=F}
+source("../Scripts/trait.at.time.R")
+```
+
+
+This includes three functions *trait.at.time*, *trait.at.time.multi*, *extract.variance*. The first will get trait values for a single trait (vector), the second will get trait values for multiple traits (matrix), and the third will extract those trait variances so we can use them elsewhere.
+
+Combine the empirical head trait data with the ancestral state estimates for nodes
+```{r, eval=F}
+head.anc <- rbind(mod.head, RRhead$aces)
+```
+
+Now try out the *trait.at.time* function.
+```{r, eval=F}
+hw.anc <- trait.at.time(timeslices = 0.15, phy = egernia.tree, 
+                        trait.vector = head.anc[,"Head_Width"], plot=T)
+```
+
+Instead of doing a single trait at a time, we can do all them together
+```{r, eval=F}
+all.anc <- trait.at.time.multi(timeslices = 0.25, phy = egernia.tree,
+                               trait.matrix = head.anc, plot = F)
+head(all.anc)
+```
+
+Now let's use the *extract.variance* function to look at temporal trends in trait variance.
+We can consider variance as a total variance or by correcting it for the number of species that exist at a given time. The total variance I'm calling "cumulative", in which the variance is the total variance of all taxa living at
+a given point in time. I think this helps to visualize the expectation that variance should increase with increasing richness (as a result of adaptive divergence).
+```{r, eval=F}
+extract.variance(all.anc[,c("time","Head_Width")], plot = "cumulative")
+```
+Alternatively we can present variance as "relative" in which we correct for the number of taxa alive at a given period. I think this helps to visualize temporal patterns in the accumulation of trait diversity. 
+```{r, eval=F}
+extract.variance(all.anc[,c("time","Head_Width")], plot = "relative")
+```
+We can also just plot both.
+```{r, eval=F}
+extract.variance(all.anc[,c("time","Head_Width")], plot = "sideXside")
+```
+
+```{r, eval=F}
+trait.variances <- NULL
+for (y in 2:ncol(all.anc)){
+  curr.var <- extract.variance(all.anc[,c(1,y)], plot=F)
+  if(y == 2){trait.variances <- data.frame(time = curr.var$time)}
+  trait.variances[,y] <- curr.var$var.rich
+  colnames(trait.variances)[y] <- colnames(all.anc)[y]
+}
+```
+
+
+### Extracting Trait Rates Along Branches
+
+This section requires three functions *rate.at.time*, *rate.at.time.multi*, and *extract.mean*. The first will get trait evolutionary rates for a single trait (vector), the second will get trait evolutionary rates values for multiple traits (matrix), and the third will extract the mean rates through time so we can use them later.
+```{r, eval=F}
+hw.rate <- rate.at.time(timeslices = 0.15, phy = egernia.tree, 
+                        rate.vector = RRhead$multiple.rates[,"Head_Width"], plot=T)
+```
+
+Instead of getting rates for a single trait at a time, we can do all them together
+```{r, eval=F}
+all.rates <- rate.at.time.multi(timeslices = 0.15, phy = egernia.tree,
+                               rate.matrix = RRhead$multiple.rates, plot = F)
+head(all.rates)
+```
+
+Now let's use the *extract.mean* function to look at temporal trends in the rates of trait evolution.
+Again, we can consider rates as averaged across all living lineages or by correcting it for the number of species that exist at a given time. The averaged rates I'm calling "average", in which the evolutionary rate is the mean across all branches at a given point in time. I think this helps to visualize the expectation that variance should increase with increasing richness (as a result of adaptive divergence).
+```{r, eval=F}
+extract.mean(all.rates[,c("time","Head_Width")], plot = "average")
+```
+
+The alternative I'm calling "corrected" in which the mean rate is corrected for the number of branches (lineages) existing at a given point in time. I can't think of what possible biological scenario this might be valuable for, but it's an option. I guess you might have an expectation of adaptive speciation then as the number of species increases, the rate should also increase. 
+```{r, eval=F}
+extract.mean(all.rates[,c("time","Head_Width")], plot = "corrected")
+```
+
+We can always plot them side by side if you're keen.
+```{r, eval=F}
+extract.mean(all.rates[,c("time","Head_Width")], plot = "sideXside")
+```
+
+Summarize mean and sd of each rate
+```{r, eval=F}
+all.trates <- list()
+for(k in 2:ncol(all.rates)){all.trates[[k-1]] <- extract.mean(all.rates[,c(1,k)], plot=F)}
+names(all.trates) <- names(all.rates[2:ncol(all.rates)])
+```
+
+Combine the rates for each trait into a single data frame for plotting
+```{r, eval=F}
+plot.trates <- NULL
+for(j in 1:length(all.trates)){
+  plot.trates <- rbind(plot.trates, data.frame(all.trates[[j]], trait = names(all.trates)[[j]]))
+}
+```
+
+Plot the mean rates of each trait in a single pane
+```{r, eval=F}
+ggplot(data = plot.trates, aes(x=time)) +
+  geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd), fill="#ABDDA4", alpha=0.25) +
+  geom_line(aes(y=rate), color="#ABDDA4", lwd=1.5) +
+  geom_hline(yintercept = 0, linetype="dotted", color="grey") +
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+
+
+
+
+```{r, eval=F}
+mean.rates <- NULL
+for (y in 2:ncol(all.rates)){
+  curr.rate <- extract.mean(all.rates[,c(1,y)], plot=F)
+  if(y == 2){mean.rates <- data.frame(time = curr.rate$time)}
+  mean.rates[,y] <- curr.rate$rate
+  colnames(mean.rates)[y] <- colnames(all.rates)[y]
+}
+```
+
+Now that we've got both the rates and variances for the same traits we can compare them....KINDA
+```{r, eval=F}
+plot(trait.variances$Head_Depth ~ mean.rates$Head_Depth)
+```
+
+
+
+\pagebreak
+
+## Running Disparity Through Time on All Modules
+
+```{r, eval=F}
+# set plot parameters
+par(mfrow=c(3,3))
+# run DTT on each of the first 4 modules
+for (p in 1:length(all.modules)){
+  geiger::dtt(egernia.tree, all.modules[[p]], nsim=1000)
+  par(new=T); title(paste(names(all.modules[p])))
+}
+```
+
+
+
+\pagebreak
+
+
+
+## Running Variable Rates on All Modules
+
+Now let's run *RRphylo* on all the modules and the odd modules
+```{r, eval=F}
+allRR <- list()
+for (k in 1:length(all.modules)){
+  print(paste("running RRphylo on:", names(all.modules)[[k]]))
+  curr.RR <- RRphylo(tree = egernia.tree, y = all.modules[[k]])
+  allRR[[k]] <- curr.RR
+  names(allRR)[[k]] <- names(all.modules)[[k]]
+}
+saveRDS(allRR, "AllModules_RRphylo.RDS")
+```
+
+Or just read in the object I've already run
+```{r, eval=F}
+allRR <- readRDS("AllModules_RRphylo.RDS")
+```
+
+Visualize the evolutionary rates for each trait
+```{r, eval=F}
+plot.RRrates.multi(RR = allRR$tail, col.palette = "RdYlBu", legend = T, tree.type = "phylogram", normalize = F)
+```
+Or we can visualize the rates per module instead
+*skip* the single traits by selecting allRR[1:4]
+```{r, eval=F}
+plot.RRrates.module(RR = allRR[4], col.palette = "RdYlBu", legend = F, tree.type = "phylogram", log.rates = F)
+```
+Try a new color scaling for the rates (log then bound 1-100)
+```{r, eval=F}
+source("../Scripts/plotting.RRphylo.R")
+plot.RRrates.module2(RR = allRR["head"], col.palette = "YlOrRd", legend = F, tree.type = "phylogram", log.rates = T)
+```
+
+
+
+We might want to plot the evolutionary rate of each module through time
+```{r, eval=F}
+allRR.rates <- NULL
+for(k in 1:length(allRR)){allRR.rates <- cbind(allRR.rates, allRR[[k]]$rates)}
+colnames(allRR.rates) <- names(allRR)
+```
+Extract the rates through time
+```{r, eval=F}
+all.RaT <- rate.at.time.multi(timeslices = 0.15, phy = egernia.tree,
+                              rate.matrix = allRR.rates, plot = F)
+```
+Summarize mean and sd of each rate
+```{r, eval=F}
+all.rates <- list()
+for(k in 2:ncol(all.RaT)){all.rates[[k-1]] <- extract.stat(all.RaT[,c(1,k)], stat="median", plot=F)}
+names(all.rates) <- names(all.RaT[2:ncol(all.RaT)])
+```
+Combine the rates for each module into a single data frame for plotting
+```{r, eval=F}
+plot.rates <- NULL
+for(j in 1:length(all.rates)){
+  plot.rates <- rbind(plot.rates, data.frame(all.rates[[j]], trait = names(all.rates)[[j]]))
+}
+```
+
+```{r, eval=F}
+# rescale erroneous standard deviations
+plot.rates$sd[which(plot.rates$sd >= 0.03)] <- 0.03
+# fix the timescale
+plot.rates$time <- plot.rates$time - max(plot.rates$time)
+```
+
+
+Now finish it by plotting the trends in rate for each module
+```{r, eval=F}
+ggplot(data = filter(plot.rates, trait %in% c("body","head","limb","tail","size")), aes(x=time)) +
+  geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd), fill="#ABDDA4", alpha=0.25) +
+  geom_line(aes(y=rate), color="#ABDDA4", lwd=1.5) +
+  geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+Extract all the module and individual trait rates
+```{r, eval=F}
+every.rate <- NULL
+for(k in 1:length(allRR)){
+  colnames(allRR[[k]]$rates) <- names(allRR)[[k]]
+  every.rate <- cbind(every.rate, allRR[[k]]$rates)
+  if(ncol(allRR[[k]]$multiple.rates) > 1){every.rate <- cbind(every.rate, allRR[[k]]$multiple.rates)}
+}
+```
+Extract the rates through time
+```{r, eval=F}
+every.RaT <- rate.at.time.multi(timeslices = 0.15, phy = egernia.tree,
+                              rate.matrix = every.rate, plot = F)
+```
+Summarize mean and sd of each rate
+```{r, eval=F}
+every.trait.rate <- list()
+for(k in 2:ncol(every.RaT)){every.trait.rate[[k-1]] <- extract.stat(every.RaT[,c(1,k)], stat="median", plot=F)}
+names(every.trait.rate) <- names(every.RaT[2:ncol(every.RaT)])
+save(every.trait.rate, file="every.trait.rate.Rdata")
+```
+Combine the rates for each module into a single data frame for plotting
+```{r, eval=F}
+plot.every.rate <- NULL
+for(j in 1:length(every.trait.rate)){
+  plot.every.rate <- rbind(plot.every.rate, data.frame(every.trait.rate[[j]], trait = names(every.trait.rate)[[j]]))
+}
+plot.every.rate$time <- plot.every.rate$time - max(plot.every.rate$time)
+```
+Add a column for which module a trait comes from
+```{r, eval=F}
+plot.every.rate <- mutate(plot.every.rate, Module = 
+                              case_when(trait == "head" | trait == "Head_Width" | trait == "Snout_Eye" | trait == "Head_Depth" | trait == "Pos_Skull"  ~ "Head",
+                                        trait == "body" | trait == "Interlimb" | trait == "Body_Width" | trait == "Pelvic_Width" | trait == "Pelvic_Height" ~ "Body",
+                                        trait == "tail" | trait == "Tail_Length" | trait == "Tail_Width" ~ "Tail",
+                                        trait == "limb" | trait == "Upper_Arm" | trait == "Lower_Arm" | trait == "Hand" | trait == "Upper_Leg" | trait == "Lower_Leg" | trait == "Foot" ~ "Limb",
+                                        trait == "size" ~ "Size",
+                                        trait == "neck" | trait == "eye" | trait == "pelvis" ~ "Unintegrated"))
+plot.every.rate <- mutate(plot.every.rate,
+                            label = if_else(time == max(time), as.character(trait), NA_character_))
+```
+Now finish it by plotting the trends in rate for each trait
+```{r, eval=F}
+library(ggrepel)
+ggplot(data = plot.every.rate, aes(x=time, y=rate)) +
+  #geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd, fill=trait), alpha=0.25) +
+  geom_line(aes(color=trait), lwd=0.5) +
+  facet_wrap(~Module, scales="free") + theme_classic() + theme(legend.position = "none") +
+  geom_label_repel(aes(label = label), nudge_x=20, na.rm = TRUE, max.overlaps = 20, size=3) +
+  xlim(c(-63,10))
+```
+Compare the just the module rates
+```{r, eval=F}
+ggplot(data = filter(plot.every.rate, trait %in% c("head","body","limb","tail")), aes(x=time, y=rate)) +
+  #geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd, fill=trait), alpha=0.25) +
+  geom_line(aes(color=trait), lwd=0.5) +
+  #geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  #facet_wrap(~Module, scales="free") + 
+  theme_classic() + theme(legend.position = "bottom") +
+  geom_label_repel(aes(label = label), nudge_x=20, na.rm = TRUE, max.overlaps = 20) +
+  xlim(c(-63,10))
+```
+We might want to save some of the extracted rate values
+```{r, eval=F}
+save(every.trait.rate, file="Extracted_Rates_Data.RData")
+```
+
+
+Make a function to extract the slopes of rate trends (variance, functional diversity, et al.)
+*JUST* needs the focal trait (rate, variance, etc) to be the second column in the dataframe
+```{r, eval=F}
+extract.rate.slopes <- function(rate.dataframe){
+  emp.slopes <- list()
+for (k in 1:length(rate.dataframe)){
+  curr.trait <- rate.dataframe[[k]]
+  curr.emp <- data.frame(time=curr.trait$time[2:(length(curr.trait$time)-1)])
+  
+  curr.slope <- NULL
+  for(i in 2:(length(curr.trait$time)-1)){
+    #curr.slope[[i-1]] <- lm(curr.trait$variance[i-1:i+1] ~ curr.trait$time[i-1:i+1])$coefficients[2]
+    curr.slope <- append(curr.slope, lm(curr.trait[,2][(i-2):(i+2)] ~ curr.trait$time[(i-2):(i+2)])$coefficients[2])
+  }
+  names(curr.slope) <- NULL
+  curr.emp <- cbind(curr.emp, slope = curr.slope)
+  emp.slopes[[k]] <- curr.emp
+}
+names(emp.slopes) <- names(rate.dataframe)
+return(emp.slopes)
+}
+```
+Now apply it to the empirical data
+```{r, eval=F}
+rate.slopes <- extract.rate.slopes(every.trait.rate)
+```
+
+
+
+
+
+
+
+What about rates for each individual trait
+```{r, eval=F}
+allRR.trates <- NULL
+for(k in 1:length(allRR)){allRR.trates <- cbind(allRR.trates, allRR[[k]]$multiple.rates)}
+colnames(allRR.trates)[17:20] <- c("size", "neck", "eye", "pelvis")
+
+```
+Extract the rates through time
+```{r, eval=F}
+all.trait.RaT <- rate.at.time.multi(timeslices = 0.15, phy = egernia.tree,
+                              rate.matrix = allRR.trates, plot = F)
+```
+Summarize mean and sd of each rate
+```{r, eval=F}
+all.trait.rates <- list()
+for(k in 2:ncol(all.trait.RaT)){all.trait.rates[[k-1]] <- extract.mean(all.trait.RaT[,c(1,k)], plot=F)}
+names(all.trait.rates) <- names(all.trait.RaT[2:ncol(all.trait.RaT)])
+```
+Combine the rates for each module into a single data frame for plotting
+```{r, eval=F}
+plot.all.rates <- NULL
+for(j in 1:length(all.trait.rates)){
+  plot.all.rates <- rbind(plot.all.rates, data.frame(all.trait.rates[[j]], trait = names(all.trait.rates)[[j]]))
+}
+plot.all.rates$time <- plot.all.rates$time - max(plot.all.rates$time)
+```
+Now finish it by plotting the trends in rate for each trait
+```{r, eval=F}
+ggplot(data = plot.all.rates, aes(x=time)) +
+  geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd), fill="#ABDDA4", alpha=0.25) +
+  geom_line(aes(y=rate), color="#ABDDA4", lwd=1.5) +
+  geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+
+Combine the modules and traits to plot together
+```{r, eval=F}
+plot.module.rates <- rbind(plot.rates, plot.all.rates)
+
+plot.module.rates <- mutate(plot.module.rates, Module = 
+                              case_when(trait == "head" | trait == "Head_Width" | trait == "Snout_Eye" | trait == "Head_Depth" | trait == "Pos_Skull"  ~ "Head",
+                                        trait == "body" | trait == "Interlimb" | trait == "Body_Width" | trait == "Pelvic_Width" | trait == "Pelvic_Height" ~ "Body",
+                                        trait == "tail" | trait == "Tail_Length" | trait == "Tail_Width" ~ "Tail",
+                                        trait == "limb" | trait == "Upper_Arm" | trait == "Lower_Arm" | trait == "Hand" | trait == "Upper_Leg" | trait == "Lower_Leg" | trait == "Foot" ~ "Limb",
+                                        trait == "size" ~ "Size",
+                                        trait == "neck" | trait == "eye" | trait == "pelvis" ~ "Unintegrated"))
+
+plot.module.rates <- mutate(plot.module.rates,
+                            label = if_else(time == max(time), as.character(trait), NA_character_))
+```
+
+Now finish it by plotting the trends in rate for each trait
+```{r, eval=F}
+ggplot(data = plot.module.rates, aes(x=time, y=rate)) +
+  #geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd), alpha=0.25) +
+  geom_line(aes(color=trait), lwd=0.5) +
+  #geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  facet_wrap(~Module, scales="free") + theme_classic() + theme(legend.position = "none") +
+  geom_label_repel(aes(label = label), nudge_x=20, na.rm = TRUE, max.overlaps = 20) +
+  xlim(c(-63,10))
+```
+Compare the just the module rates
+```{r, eval=F}
+ggplot(data = filter(plot.module.rates, trait %in% c("head","body","limb","tail")), aes(x=time, y=rate)) +
+  geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd, fill=trait), alpha=0.25) +
+  geom_line(aes(color=trait), lwd=0.5) +
+  #geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  #facet_wrap(~Module, scales="free") + 
+  theme_classic() + theme(legend.position = "none") +
+  geom_label_repel(aes(label = label), nudge_x=20, na.rm = TRUE, max.overlaps = 20) +
+  xlim(c(-63,10))
+```
+Compare the rates within each module
+```{r, eval=F}
+ggplot(data = filter(plot.module.rates, !trait %in% c("head","body","limb","tail")), aes(x=time, y=rate)) +
+  #geom_ribbon(aes(ymin = rate-sd, ymax = rate+sd), alpha=0.25) +
+  geom_line(aes(color=trait), lwd=0.5) +
+  #geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  facet_wrap(~Module, scales="free") + theme_classic() + theme(legend.position = "none") +
+  geom_label_repel(aes(label = label), nudge_x=20, na.rm = TRUE, max.overlaps = 20) +
+  xlim(c(-63,10))
+```
+
+\pagebreak
+
+Estimate shifts in the *rate* of trait evolution for each module (incorporating each trait)
+```{r, eval=F}
+allRRshift <- list()
+for (k in 1:length(allRR)){
+  curr.RR <- search.shift(allRR[[k]], status.type="clade", f=1)
+  allRRshift[[k]] <- curr.RR
+  names(allRRshift)[[k]] <- names(allRR)[[k]]
+}
+```
+
+Let's save these analyses with the initial RRphylo runs
+```{r, eval=F}
+save(allRR, allRRshift, file="allRRphylo.RData")
+```
+
+
+Plot the results
+```{r, eval=F}
+plot.RRshift(allRR$head, allRRshift$head, scale.shift=F, new.plot=T, legend=F)
+plot.RRshift(allRR$body, allRRshift$body, scale.shift=F, new.plot=T, legend=F)
+plot.RRshift(allRR$tail, allRRshift$tail, scale.shift=F, new.plot=T, legend=F)
+plot.RRshift(allRR$limb, allRRshift$limb, scale.shift=F, new.plot=T, legend=F)
+```
+
+Or we can plot the shifts directly onto the rate plots.  
+**Head**
+```{r, eval=F}
+plot.RRrates(allRR$head, col.palette="RdYlBu", legend=T, tree.type="phylogram", trait.title="Head", normalize=F)
+plot.RRshift(allRR$head, allRRshift$head, scale.shift=F, new.plot=F)
+```
+**Body**
+```{r, eval=F}
+plot.RRrates(allRR$body, col.palette="RdYlBu", legend=T, tree.type="phylogram", trait.title="Body", normalize=F)
+plot.RRshift(allRR$body, allRRshift$body, scale.shift=F, new.plot=F)
+```
+**Tail**
+```{r, eval=F}
+plot.RRrates(allRR$tail, col.palette="RdYlBu", legend=F, tree.type="phylogram", trait.title="Tail", normalize=F)
+plot.RRshift(allRR$tail, allRRshift$tail, scale.shift=F, new.plot=F, legend=F)
+```
+**Limbs**
+```{r, eval=F}
+plot.RRrates(allRR$limb, col.palette="RdYlBu", legend=T, tree.type="phylogram", trait.title="Limbs", normalize=F)
+plot.RRshift(allRR$limb, allRRshift$limb, scale.shift=F, new.plot=F, legend=F)
+```
+
+**Size**
+```{r, eval=F}
+plot.RRrates(allRR$size, col.palette="RdYlBu", legend=F, tree.type="phylogram", trait.title="Size", normalize=F)
+plot.RRshift(allRR$size, allRRshift$size, scale.shift=F, new.plot=F)
+```
+
+
+I don't know what this is. And skip the l1ou stuff:
+```{r, eval=F}
+allTraits <- list()
+for (k in 1:length(allRR)){
+  curr.T <- trait.at.time(timeslices = 0.15, phy = egernia.tree, trait.vector = )
+}
+```
+
+
+
+```{r, warning=F, message=F, eval=F}
+all.l1ou <- NULL
+for (k in 1:length(all.modules)){
+  curr.data <- all.modules[[k]]
+  trait.data <- adjust_data(egernia.tree, curr.data)
+  all.l1ou[[k]] <- estimate_shift_configuration(trait.data$tree, trait.data$Y, 
+                                    nCores=8, quietly=F, criterion="pBIC")
+  names(all.l1ou)[[k]] <- names(all.modules)[[k]]
+}
+```
+
+
+```{r, eval=F}
+#for(k in 1:length(all.l1ou)){plot(shifts.to.simmap.l1ou(all.l1ou[[k]]))}
+lapply(all.l1ou, function(x) plot(shifts.to.simmap.l1ou(x)))
+```
+
+
+The final thing we can do is plot the position of rate shifts on the tree showing the phenotypic shifts.  
+**Head**
+```{r, eval=F}
+plot(shifts.to.simmap.l1ou(all.l1ou$head))
+plot.RRshift(allRR$head, allRRshift$head, scale.shift=F, new.plot=F)
+```
+**Body**
+```{r, eval=F}
+plot(shifts.to.simmap.l1ou(all.l1ou$body))
+plot.RRshift(allRR$body, allRRshift$body, scale.shift=F, new.plot=F)
+```
+**Tail**
+```{r, eval=F}
+plot(shifts.to.simmap.l1ou(all.l1ou$tail))
+plot.RRshift(allRR$tail, allRRshift$tail, scale.shift=F, new.plot=F)
+```
+**Limbs**
+```{r, eval=F}
+plot(shifts.to.simmap.l1ou(all.l1ou$limb))
+plot.RRshift(allRR$limb, allRRshift$limb, scale.shift=F, new.plot=F)
+```
+*Skip the above L1ou stuff*
+
+
+
+
+
+
+Ultimately we want to be able to look at the differences in temporal patterns of **both** the modules and individual traits. So we'll do them side by side, and if it gets confusing we can split it back up.
+
+Extract the function diversity at each timeslice into a list of length equal to the number of modules.  
+We're using functional diversity from *dispRity*, as it distills the multivariate space to a single value.
+```{r, eval=F}
+module.disparity <- list()
+for(k in 1:length(allRR)){
+#for(k in 1:4){
+  print(names(allRR)[[k]])
+  if(ncol(allRR[[k]]$aces)==1){colnames(allRR[[k]]$aces) <- colnames(all.modules[[k]])}
+  trait.anc <- as.matrix(rbind(all.modules[[k]], allRR[[k]]$aces))
+  all.anc <- trait.at.time.multi(timeslices = 0.15, phy = egernia.tree,
+                               trait.matrix = trait.anc, plot = F)
+  temp.var <- extract.disparity(all.anc, plot=T, metric="disparity")
+  module.disparity[[k]] <- temp.var
+}
+names(module.disparity) <- names(allRR)
+```
+
+
+Extract the empirical variances into a list of length equal to the number of traits.  
+We're using variance as the disparity measure for individual traits.
+```{r, eval=F}
+empirical.variances <- list()
+for(k in 1:length(allRR)){
+  trait.anc <- as.matrix(rbind(all.modules[[k]], allRR[[k]]$aces))
+  all.anc <- trait.at.time.multi(timeslices = 0.15, phy = egernia.tree,
+                               trait.matrix = trait.anc, plot = F)
+  temp.var <- NULL
+  for(j in 2:ncol(all.anc)){
+      temp.var[[j-1]] <- extract.variance(all.anc[,c(1,j)], plot = "sideXside", metric = "disparity")
+  }
+  names(temp.var) <- names(all.anc)[2:length(names(all.anc))]
+  empirical.variances <- c(empirical.variances, temp.var)
+}
+```
+Combine the disparity through time info for both traits and modules
+```{r, eval=F}
+empirical.variances$head <- module.disparity$head
+empirical.variances$body <- module.disparity$body
+empirical.variances$tail <- module.disparity$tail
+empirical.variances$limb <- module.disparity$limb
+```
+
+Just an example of one of the traits
+```{r, eval=F}
+ggplot() + 
+  geom_line(data=empirical.variances$Tail_Length, aes(x=time-max(time), y=measure)) +
+  theme_classic()
+```
+
+
+
+
+I should include a section where I do model selection for each module to determine if the *default* constraint scheme for the covariance between traits is appropriate. The alternatives are *diagonal* where there is no covariance between traits but each trait has its own rate, *equaldiagonal* where there is no covariance and all traits share the same evolutionary rate, and *equal* where the traits covary and share the same evolutionary rate. 
+```{r, eval=F}
+
+```
+
+
+Simulate datasets for each of the modules (multivariate traits), fit multivariate Brownian Motion to those data, and then estimate ancestral states. To get reliable conclusions, the number of simulated datasets (*nsim*) probably needs to be ~500. Before finishing this exercise, I need to consider what covariance structure there should be for the traits within modules. If I'm trying to allow each trait to vary independently, then the it should be *param=list(constraint="diagonal")*. If we consider that they're part of a module and therefore must covary, then it should either be *constraint="equal"* in which all traits covary and share the same variance, or *constraint="default"* in which all traits covary with different variances (no constraints). 
+```{r, message=F, eval=F}
+mvBM.simulated <- list(); emp.constant.rates <- list()
+for(k in 1:length(all.modules)){
+#for(k in 5:length(all.modules)){
+
+  #### Using MVMORPH
+  # fit the BM1 model to the empirical data
+  mv.bm1 <- mvBM(egernia.tree, all.modules[[k]], model="BM1", 
+                 method="pic", param=list(constraint="diagonal"))
+  # keep the sigma values for later
+  emp.constant.rates[[k]] <- diag(mv.bm1$sigma)
+  # extract the parameter values and use them to simulate X datasets under the same model
+  mvBM.simulated[[k]] <- mvSIM(egernia.tree, nsim=500, error=NULL, model="BM1", 
+                                #param=list(theta=mv.bm1$theta, sigma=mv.bm1$sigma))
+                                 param=list(theta=allRR[[k]]$aces[1,], sigma=mv.bm1$sigma))
+  # rename the trait columns for modules with a single trait (more complicated than it should be)
+  if(ncol(all.modules[[k]])==1){
+    mvBM.simulated[[k]] <- as.list(data.frame(mvBM.simulated[[k]]))
+    mvBM.simulated[[k]] <- lapply(mvBM.simulated[[k]], function(x) as.matrix(x))
+    mvBM.simulated[[k]] <- lapply(mvBM.simulated[[k]], function(x) {rownames(x) <- rownames(all.modules[[k]]); x})
+    mvBM.simulated[[k]] <- lapply(mvBM.simulated[[k]], function(x) {colnames(x) <- colnames(all.modules[[k]]); x})
+  }
+  # rename the trait columns for modules with multiple traits
+  if(ncol(all.modules[[k]])>1){
+    {for(p in 1:length(mvBM.simulated[[k]])){colnames(mvBM.simulated[[k]][[p]]) <- colnames(all.modules[[k]])}}
+  }
+  
+  # for each BM simulated dataset, estimate ancestral node values with fastAnc from phytools
+  for (j in 1:length(mvBM.simulated[[k]])){
+    int.nodes <- apply(mvBM.simulated[[k]][[j]], 2, function(x) fastAnc(egernia.tree, x))
+    # should this be: rbind(int.nodes, mvBM.simulated[[k]][[j]]) ?!
+    mvBM.simulated[[k]][[j]] <- rbind(mvBM.simulated[[k]][[j]], int.nodes)
+  }
+  
+  # Using RPANDA
+  #pl.bm <- fit_t_pl(as.matrix(all.modules[[k]]), egernia.tree, model="BM")
+  #mvBM.simulated[[k]] <- mvSIM(egernia.tree, nsim=10, error=NULL, model="BM1",
+  #                             param=list(theta=, sigma=pl.bm$R))
+  #anc.best <- ancestral(pl.bm)
+  #anc.values <- anc.best$nodes
+  #rownames(anc.values) <- sapply(rownames(anc.values), function(x) strsplit(x, "_")[[1]][2])
+  #mvBM.simulated[[k]] <- rbind(all.modules[[k]], anc.values)
+}
+names(mvBM.simulated) <- names(all.modules)
+names(emp.constant.rates) <- names(all.modules)
+```
+Let's save these simulated datasets for later.
+```{r, eval=F}
+save(mvBM.simulated, file="mvBM_Simulated_Datasets_Diagonal.RData")
+#load("mvBM_Simulated_Datasets_Diagonal.RData")
+```
+
+
+This is to compare ancestral states between RRphylo and mvMORPH/phytools
+```{r, eval=F}
+internal.nodes <- NULL
+for (y in 1:length(all.modules)) {
+  internal.nodes <- cbind(internal.nodes, apply(all.modules[[y]], 2, function(x) fastAnc(egernia.tree, x)))
+}
+internal.nodes <- data.frame(internal.nodes)
+```
+
+
+We don't need to run *RRphylo* on each of the simulated data sets, and we've already estimated ancestral states, so what next?
+```{r, eval=F}
+# I liked this bit of code, so I'm leaving it for the moment
+#RRsims <- lapply(mvBM1.sim, function(x) {RRphylo(tree = egernia.tree, y = x)})
+```
+
+Get the trait at time values for each simulated dataset
+```{r, eval=F}
+rm(all.TaT); all.TaT <- list()
+for (k in 1:length(mvBM.simulated)){
+  all.TaT[[k]] <- lapply(1:length(mvBM.simulated[[k]]), function(x) {trait.at.time.multi(timeslices=0.15,
+                                                                        phy=egernia.tree,
+                                                                        trait.matrix=mvBM.simulated[[k]][[x]],
+                                                                        plot=F)})
+}
+names(all.TaT) <- names(mvBM.simulated)
+```
+
+Move each trait into its own named list so we can look at individual traits.
+```{r, eval=F}
+TaT.named <- list()
+for (k in 1:length(all.TaT)){ # 4 elements
+  trait.list <- list()
+  for (j in 1:(ncol(all.TaT[[k]][[1]])-1)){ # 10 elements
+    #trait.list <- list()
+    trait.list[[j]] <- lapply(all.TaT[[k]], function(x) x[,c(1,j+1)])
+    names(trait.list)[[j]] <- colnames(all.TaT[[k]][[j]])[[j+1]]
+  }
+  TaT.named[[k]] <- trait.list
+}
+TaT.named <- unlist(TaT.named, recursive=F, use.names=T)
+```
+
+
+Extract the disparity for each simulated dataset in each module
+```{r, eval=F}
+all.func.div <- NULL
+for (k in 1:length(all.TaT)){
+  all.func.div[[k]] <- lapply(all.TaT[[k]], function(x) extract.disparity(x, plot=F, metric="disparity"))
+}
+names(all.func.div) <- names(all.TaT)
+```
+
+
+Extract the variances for each simulated trait in each dataset in each module
+```{r, eval=F}
+all.variances <- list()
+for (k in 1:length(TaT.named)){
+  all.variances[[k]] <- lapply(TaT.named[[k]], function(x) extract.variance(x, plot=F, metric="disparity"))
+  print(paste("finished", names(TaT.named)[[k]]))
+}
+names(all.variances) <- names(TaT.named)
+```
+
+Pause, breathe, and save some of these files
+```{r, eval=F}
+save(all.TaT, TaT.named, all.func.div, all.variances, file="Simulated_Trait_at_Time.RData")
+```
+
+
+Make a data.frame of all the functional diversities and get the confidence intervals on them
+```{r, eval=F}
+#require(Rmisc)
+div.list <- list(); func.div.df <- list()
+for (k in 1:length(all.func.div)){
+  all.div <- all.func.div[[k]][[1]][,c(1,2)] # should be "time" and "disparity" or "measure" (previously "func.div")
+  for (t in 2:length(all.func.div[[k]])){
+    all.div <- cbind(all.div, all.func.div[[k]][[t]][,2]) # either "disparity" or "measure" (previously "func.div")
+  }
+  func.div.df[[k]] <- all.div
+  func.divs <- all.div[,2:ncol(all.div)]
+  #func.divs <- cbind(func.divs, t(apply(func.divs, 1, function(x) CI(x, 0.95))))
+  func.divs <- cbind(func.divs, t(apply(func.divs, 1, function(x) quantile(x, probs=c(0.95, 0.5, 0.05)))))
+  func.divs <- cbind(time=all.div$time, func.divs[,c("95%", "50%", "5%")])
+  div.list[[k]] <- func.divs
+}
+names(div.list) <- names(all.func.div)
+names(func.div.df) <- names(all.func.div)
+```
+
+Combined every module to get quantiles across all modules
+```{r, eval=F}
+sim.module.variances <- dplyr::bind_cols(func.div.df)
+sim.module.variances <- sim.module.variances[!duplicated(as.list(sim.module.variances))]
+smv <- as.data.frame(t(apply(sim.module.variances[,2:ncol(sim.module.variances)], 1, function(x) quantile(x, probs=c(0.95, 0.5, 0.05)))))
+smv$time <- sim.module.variances$time...1
+```
+
+
+
+Make a data.frame of all the variances and get the quantiles on them
+```{r, eval=F}
+var.list <- list(); variances.df <- list()
+for (k in 1:length(all.variances)){
+  all.var <- all.variances[[k]][[1]][,c(1,2)] # should be "time" and "disparity" or "measure" (previously "variance")
+  for (t in 2:length(all.variances[[k]])){
+    all.var <- cbind(all.var, all.variances[[k]][[t]][,2]) # either "disparity" or "measure" (previously "variance")
+  }
+  variances.df[[k]] <- all.var
+  variances <- all.var[,2:ncol(all.var)]
+  #variances <- cbind(variances, t(apply(variances, 1, function(x) CI(x, 0.95))))
+  variances <- cbind(variances, t(apply(variances, 1, function(x) quantile(x, probs=c(0.95, 0.5, 0.05)))))
+  variances <- cbind(time=all.var$time, variances[,c("95%", "50%", "5%")])
+  var.list[[k]] <- variances
+}
+names(var.list) <- names(all.variances)
+names(variances.df) <- names(all.variances)
+```
+
+Calculate the disparity/rate for each simulation and get quantiles through time
+```{r, eval=F}
+constant.rates <- unlist(emp.constant.rates)
+disp.rate.traits <- data.frame(variances.df[[1]]$time)
+for (t in 1:length(variances.df)){
+  disp.rate.traits <- cbind(disp.rate.traits, variances.df[[t]][,2:ncol(variances.df[[t]])] / constant.rates[[t]])
+}
+sim.trait.disp <- as.data.frame(t(apply(disp.rate.traits[,2:ncol(disp.rate.traits)], 1, function(x) quantile(x, probs=c(0.95, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125, 0.05)))))
+sim.trait.disp$time <- variances.df[[1]]$time - max(variances.df[[1]]$time)
+```
+Quickly visualize what the Brownian Motion expection looks like
+```{r, eval=F}
+ggplot(sim.trait.disp, aes(x=time))+
+  geom_ribbon(aes(ymin=`5%`, ymax=`95%`),  fill="grey", alpha=0.25) +
+  geom_ribbon(aes(ymin=`12.5%`, ymax=`87.5%`), fill="grey", alpha=0.25) +
+  geom_ribbon(aes(ymin=`25%`, ymax=`75%`), fill="grey", alpha=0.25) +
+  geom_ribbon(aes(ymin=`37.5%`, ymax=`62.5%`), fill="grey", alpha=0.25) +
+  geom_line(aes(y=`50%`), linetype="dotted", color="darkGrey") +
+  theme_classic()
+```
+
+
+
+
+
+Make a function so that we can have a preliminary look at the data
+```{r, eval=F}
+basic.disparity.trends <- function(simulated.disparity, empirical.disparity, trait, disparity = c("variance", "functional divergence", "disparity"), plot=T){
+  curr.trait <- which(names(simulated.disparity) == trait)
+  curr.emp <- which(names(empirical.disparity) == trait)
+  
+  
+  if(plot==T){
+    ymax <- max(simulated.disparity[[curr.trait]]$`95%`)
+    plot(data=simulated.disparity[[curr.trait]],  `95%`~time, type="l", col="red", ylim=c(0,ymax)); par(new=T)
+    plot(data=simulated.disparity[[curr.trait]],  `5%`~time, type="l", col="red", ylim=c(0,ymax)); par(new=T)
+    plot(data=simulated.disparity[[curr.trait]],  `50%`~time, type="l", col="black", ylim=c(0,ymax)); par(new=T)
+    if(disparity=="variance" | disparity=="disparity"){plot(data=empirical.disparity[[curr.emp]], measure~time, type="l", col="green", ylim=c(0,ymax))}
+    if(disparity=="functional divergence"){plot(data=empirical.disparity[[curr.emp]], measure~time, type="l", col="green", ylim=c(0,ymax))}
+    }
+    else if(plot==F){
+      return(list=c(simulated.disparity, empirical.disparity))
+    }
+}
+# e.g. basic.disparity.trends(simulated.disparity = var.list, empirical.disparity = empirical.variances, 
+#                             trait = "Head_Width", disparity = "variance")
+```
+
+Have a squizz at the trait specific version
+```{r, eval=F}
+basic.disparity.trends(simulated.disparity=var.list, empirical.disparity=empirical.variances, 
+                       trait="Hand", disparity = "disparity", plot=T)
+```
+Have a squizz at the module specific version
+```{r, eval=F}
+basic.disparity.trends(simulated.disparity=div.list, empirical.disparity=module.disparity,
+                       trait="limb", disparity="disparity")
+```
+Combine the empirical and simulated variances into a single dataframe
+```{r, eval=F}
+# This first way gives you a trait specific BM null expectation
+combined.traits <- NULL
+for (k in 1:length(var.list)){
+  curr.var <- var.list[[k]]
+  corrected.var <- var.list[[k]][2:4]/emp.constant.rates[[k]]
+  colnames(corrected.var) <- c("95%_measure_rate", "50%_measure_rate", "5%_measure_rate")
+  curr.var <- cbind(curr.var, corrected.var)
+  curr.var <- cbind(curr.var, emp.disparity=empirical.variances[[k]]$measure)
+  curr.var <- cbind(curr.var, emp.disparity.rate=(empirical.variances[[k]]$measure/all.trait.rates[[k]]$rate))
+  curr.var$trait <- names(var.list)[[k]]
+  combined.traits <- rbind(combined.traits, curr.var)
+}
+
+# This second way gives you a body-wide (all traits) BM null expectation
+combined.traits <- NULL
+for (k in 1:length(empirical.variances)){
+  curr.var <- cbind(sim.trait.disp, emp.disparity=empirical.variances[[k]]$measure)
+  curr.var$trait <- names(empirical.variances)[[k]]
+  combined.traits <- rbind(combined.traits, curr.var)
+}
+
+# Also add in the Disparity/Rate values
+#corrected.disparity <- combined.traits[,2:4]/
+```
+
+And do the same for the modules (combine simulate and empirical functional diversities)
+```{r, eval=F}
+# This first way gives you a module specific BM null expectation
+combined.modules <- NULL
+for (k in 1:length(div.list)){
+  curr.mod <- div.list[[k]]
+  curr.mod <- cbind(curr.mod, emp.disparity=module.disparity[[k]]$measure)
+  curr.mod$module <- names(module.disparity)[[k]]
+  combined.modules <- rbind(combined.modules, curr.mod)
+}
+
+# This second way gives you a body-wide (all traits) BM null expectation
+combined.modules <- NULL
+for (k in 1:length(module.disparity)){
+  curr.var <- cbind(sim.trait.disp, emp.disparity=module.disparity[[k]]$measure)
+  curr.var$module <- names(module.disparity)[[k]]
+  combined.modules <- rbind(combined.modules, curr.var)
+}
+```
+
+Now a *fancier* function to plot the combined variances
+```{r, eval=F}
+ggplot(combined.traits, aes(x=time)) +
+  geom_ribbon(aes(ymin=`95%`, ymax=`5%`), fill="grey", alpha=0.5) +
+  geom_line(aes(y=`50%`), color="grey", linetype="dotted") +
+  geom_line(aes(y=emp.disparity), color="#ABDDA4", lwd=1.5) + 
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+Now a *fancier* function to plot the combined disparity/rate
+```{r, eval=F}
+ggplot(combined.traits, aes(x=time)) +
+  geom_ribbon(aes(ymin=`5%`, ymax=`95%`), fill="grey", alpha=0.5) +
+  geom_line(aes(y=`50%`), color="grey", linetype="dotted") +
+  #geom_line(aes(y=emp.disparity.rate), color="#ABDDA4", lwd=1.5) + 
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+
+
+Now a *fancier* function to plot the combined disparities
+```{r, eval=F}
+ggplot(combined.modules, aes(x=time)) +
+  geom_ribbon(aes(ymin=`95%`, ymax=`5%`), fill="grey", alpha=0.5) +
+  geom_line(aes(y=`50%`), color="grey", linetype="dotted") +
+  geom_line(aes(y=emp.disparity), color="#ABDDA4", lwd=1.5) + 
+  facet_wrap(~module, scales="free") + theme_classic()
+```
+
+
+Make a function that extracts the slopes of simulated **disparity** data (variances, functional diversity, et al.)
+```{r, eval=F}
+extract.simulated.slopes <- function(disparity.dataframe){
+  sim.slopes <- list()
+  for (k in 1:length(disparity.dataframe)){
+    curr.trait <- disparity.dataframe[[k]]
+    curr.sim <- data.frame(time=curr.trait$time[2:(length(curr.trait$time)-1)])
+    for(j in 2:ncol(curr.trait)){
+      curr.slope <- NULL
+      for(i in 2:(length(curr.trait$time)-1)){
+        curr.slope <- append(curr.slope, lm(curr.trait[,j][(i-2):(i+2)] ~ curr.trait$time[(i-2):(i+2)])$coefficients[2])
+      }
+      names(curr.slope) <- NULL
+      curr.sim <- cbind(curr.sim, slope = curr.slope)
+    }
+    sim.slopes[[k]] <- curr.sim
+}
+names(sim.slopes) <- names(disparity.dataframe)
+return(sim.slopes)
+}
+# e.g. extract.slopes(variances.df) or extract.slopes(func.div.df)
+```
+
+Now extract the slopes of the simulated **variance** data for each trait
+```{r, eval=F}
+sim.variance.slopes <- extract.simulated.slopes(variances.df)
+```
+
+And also extract the slopes of the simulated **functional diversity** data for each module ,but this isn't necessary
+```{r, eval=F}
+sim.func.div.slopes <- extract.simulated.slopes(func.div.df)
+```
+
+
+Make a function to extract the slopes of empirical disparity trends (variance, functional diversity, et al.)
+```{r, eval=F}
+extract.empirical.slopes <- function(disparity.dataframe, window.size){
+  window <- round(window.size/2,0)
+  
+  if(class(disparity.dataframe)=="data.frame"){
+    curr.trait <- disparity.dataframe
+    curr.slope <- NULL
+    
+    for(i in 1:(nrow(curr.trait))){
+      min.t <- i-window; max.t <- i+window
+      if(min.t<0){min.t=0}; if(max.t>nrow(curr.trait)){max.t=nrow(curr.trait)}
+      temp.trait <- curr.trait[(min.t):(max.t),]
+      temp.trait <- temp.trait[complete.cases(temp.trait),]
+      curr.slope <- append(curr.slope, lm(temp.trait[,2] ~ temp.trait$time)$coefficients[2])
+    }
+    emp.slopes <- cbind(curr.trait, slope = curr.slope)
+  }
+  
+  if(class(disparity.dataframe)=="list"){
+      emp.slopes <- list()
+      for (k in 1:length(disparity.dataframe)){
+        curr.trait <- disparity.dataframe[[k]]
+
+        curr.slope <- NULL
+        for(i in 1:(nrow(curr.trait))){
+          min.t <- i-window; max.t <- i+window
+          if(min.t<0){min.t=0}; if(max.t>nrow(curr.trait)){max.t=nrow(curr.trait)}
+          temp.trait <- curr.trait[(min.t):(max.t),]
+          temp.trait <- temp.trait[complete.cases(temp.trait),]
+          curr.slope <- append(curr.slope, lm(temp.trait[,2] ~ temp.trait$time)$coefficients[2])
+        }
+        names(curr.slope) <- NULL
+        curr.emp <- cbind(curr.trait, slope = curr.slope)
+        emp.slopes[[k]] <- curr.emp
+      }
+    names(emp.slopes) <- names(disparity.dataframe)
+  }
+return(emp.slopes)
+}
+# e.g. extract.empirical.slopes(empirical.variances) or extract.empirical.slopes(module.disparity)
+```
+And extract the slopes of the empirical **variance** data for each trait
+```{r, eval=F}
+emp.variance.slopes <- extract.empirical.slopes(empirical.variances)
+```
+As well as extract the slopes of the empirical **functional diversity** data for each module
+```{r, eval=F}
+emp.func.div.slopes <- extract.empirical.slopes(module.disparity)
+```
+
+
+*Difference in slopes looks weird for the modules, and I don't know why, but I'll come back here when I can*
+Should the difference in slopes be (1) the difference between each simulated line from the empirical trend, then get the quantiles, or should it be (2) get the quantiles for the simulated trend then get the difference between the empirical trend and quantiles?
+
+The below methods give the same result, use either (go with *slope.differences1*, I think *slope.differences2* is inverted)
+
+Finally get the differences in slopes between the simulated and empirical trends in variance-through-time
+```{r, eval=F}
+slope.differences1 <- function(simulated.slopes, empirical.slopes){
+  #slope.diff <- lapply(1:length(sim.slopes), function(x) sim.slopes[[x]][,c(2:ncol(sim.slopes[[x]]))] - emp.slopes[[x]]$slope)
+  slope.diff <- lapply(1:length(simulated.slopes), function(x) empirical.slopes[[x]]$slope - simulated.slopes[[x]][,c(2:ncol(simulated.slopes[[x]]))])
+  #slope.diff <- lapply(slope.diff, function(x) t(apply(x, 1, function(y) CI(y, 0.95)))) # using CI is wrong
+  slope.diff <- lapply(slope.diff, function(x) t(apply(x, 1, function(y) quantile(y, probs=c(0.95, 0.5, 0.05)))))
+  slope.diff <- lapply(slope.diff, function(x) cbind(x, time=simulated.slopes[[1]]$time))
+  names(slope.diff) <- names(simulated.slopes)
+  return(slope.diff)
+}
+# e.g. slope.differences(sim.variance.slopes, emp.variance.slopes) or slope.differences(sim.func.div.slopes, emp.func.div.slopes)
+```
+
+```{r, eval=F}
+slope.differences2 <- function(simulated.slopes, empirical.slopes){
+  #slope.diff <- lapply(1:length(sim.slopes), function(x) sim.slopes[[x]][,c(2:ncol(sim.slopes[[x]]))] - emp.slopes[[x]]$slope)
+  slope.diff <- lapply(simulated.slopes, function(x) t(apply(x[,2:ncol(x)], 1, function(y) quantile(y, probs=c(0.95, 0.5, 0.05)))))
+  slope.diff <- lapply(1:length(slope.diff), function(x) empirical.slopes[[x]]$slope - slope.diff[[x]])
+  slope.diff <- lapply(slope.diff, function(x) cbind(x, time=simulated.slopes[[1]]$time))
+  names(slope.diff) <- names(simulated.slopes)
+  return(slope.diff)
+}
+# e.g. slope.differences(sim.variance.slopes, emp.variance.slopes) or slope.differences(sim.func.div.slopes, emp.func.div.slopes)
+```
+
+Get the slopes for each trait (variance) and module (functional disparity)
+```{r, eval=F}
+slope.diff.variance <- slope.differences1(sim.variance.slopes, emp.variance.slopes)
+```
+```{r, eval=F}
+slope.diff.func.div <- slope.differences1(sim.func.div.slopes, emp.func.div.slopes)
+```
+
+
+```{r, eval=F}
+plot.slope.differences <- function(slope.diff, trait){
+  curr.trait <- which(names(slope.diff) == trait)
+  ymax <- max(slope.diff[[curr.trait]][,1])
+  ymin <- min(slope.diff[[curr.trait]][,3])
+    plot(data=slope.diff[[curr.trait]], `95%`~time, type="l", col="red", ylim=c(ymin,ymax)); par(new=T)
+    plot(data=slope.diff[[curr.trait]], `5%`~time, type="l", col="red", ylim=c(ymin,ymax)); par(new=T)
+    plot(data=slope.diff[[curr.trait]], `50%`~time, type="l", col="black", ylim=c(ymin,ymax))
+    #plot(data=slope.diff[[curr.trait]], upper~time, type="l", col="red", ylim=c(ymin,ymax)); par(new=T)
+    #plot(data=slope.diff[[curr.trait]], lower~time, type="l", col="red", ylim=c(ymin,ymax)); par(new=T)
+    #plot(data=slope.diff[[curr.trait]], mean~time, type="l", col="black", ylim=c(ymin,ymax))
+}
+```
+
+```{r, eval=F}
+plot.slope.differences(slope.diff.variance, trait="Tail_Length")
+```
+
+```{r, eval=F}
+plot.slope.differences(slope.diff.func.div, trait="tail")
+```
+
+
+Combine the differences in slopes for all traits into a single data frame for plotting
+```{r, eval=F}
+slope.differences.variance <- NULL
+for(j in 1:length(slope.diff.variance)){
+  slope.differences.variance <- rbind(slope.differences.variance, data.frame(slope.diff.variance[[j]], trait = names(slope.diff.variance)[[j]]))
+}
+colnames(slope.differences.variance) <- c("upper", "mean", "lower", "time", "trait")
+slope.differences.variance$time <- slope.differences.variance$time - max(slope.differences.variance$time)
+```
+```{r, eval=F}
+slope.differences.func.div <- NULL
+for(j in 1:length(slope.diff.func.div)){
+  slope.differences.func.div <- rbind(slope.differences.func.div, data.frame(slope.diff.func.div[[j]], trait = names(slope.diff.func.div)[[j]]))
+}
+colnames(slope.differences.func.div) <- c("upper", "mean", "lower", "time", "trait")
+```
+
+
+Start by plotting the trends in variance (individual traits)
+```{r, eval=F}
+ggplot(data = slope.differences.variance, aes(x=time)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill="#ABDDA4", alpha=0.25) +
+  geom_line(aes(y=mean), color="#ABDDA4", lwd=1.5) +
+  geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+
+Then plot the trends in functional diversity (modules)
+```{r, eval=F}
+ggplot(data = sdfd, aes(x=time)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill="#ABDDA4", alpha=0.25) +
+  geom_line(aes(y=mean), color="#ABDDA4", lwd=1.5) +
+  #geom_smooth(aes(y=mean), color="#ABDDA4", lwd=1.5, span=0.05, se=F) + 
+  geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+
+```{r, eval=F}
+ggplot(data = sdfd, aes(x=time)) +
+  #geom_ribbon(aes(ymin = lower, ymax = upper), fill="#ABDDA4", alpha=0.25) +
+  geom_smooth(aes(y=lower), span=0.25, se=F, color="grey", alpha=0.25) +
+  geom_smooth(aes(y=upper), span=0.25, se=F, color="grey", alpha=0.25) + 
+  geom_smooth(aes(y=mean),  span=0.25, se=F, color="#ABDDA4") +
+  #geom_line(aes(y=mean), color="#ABDDA4", lwd=1.5) +
+  #geom_smooth(aes(y=mean), color="#ABDDA4", lwd=1.5, span=0.05, se=F) + 
+  geom_hline(yintercept = 0, linetype="dotted", color="grey") + 
+  facet_wrap(~trait, scales="free") + theme_classic()
+```
+
+```{r, eval=F}
+#slope.diff <- NULL
+#for (j in 2:(length(variances$time)-1)){
+#  slope.mean <- lm(variances$mean[j-1:j+1] ~ variances$time[j-1:j+1])
+#  slope.upper <- lm(variances$upper[j-1:j+1] ~ variances$time[j-1:j+1])
+#  slope.lower <- lm(variances$lower[j-1:j+1] ~ variances$time[j-1:j+1])
+#  slope.empirical <- lm()
+#
+#  slope.diff[j-1] <- rbind(slope.diff, data.frame(slope.mean = slope.mean$coefficients[2],
+#                                                  slope.upper = slope.upper$coefficients[2],
+#                                                  slope.lower = slope.lower$coefficients[2]))
+#}
+```
+
+
+```{r, eval=F}
+RRsim <- RRphylo(tree = egernia.tree, y = mvBM1.sim[[1]])
+RRsim.anc <- rbind(mvBM1.sim[[1]], RRsim$aces)
+colnames(RRsim.anc) <- colnames(all.modules$head)
+plot.RRrates(RRsim, col.palette = "RdYlBu", legend=F, tree.type="phylogram")
+```
+
+```{r, eval=F}
+TTsim <- trait.at.time.multi(timeslices=0.15, egernia.tree, trait.matrix=RRsim.anc, plot=F)
+extract.variance(TTsim, plot="sideXside")
+```
+
+
+
+\pagebreak
+
+The last thing we'll do is plot the the accumulation of morphological diversity (disparity/rate) as a function of time. This requires combining the simulated data and the empirical data together, for both rates and trait disparities.
+Start by reordering the empirical variances and trait rate matrices and making sure they match
+```{r, eval=F}
+empirical.variances <- empirical.variances[order(names(empirical.variances))]
+every.trait.rate <- every.trait.rate[order(names(every.trait.rate))]
+data.frame(names(empirical.variances), names(every.trait.rate))
+```
+loop through and make a new variable which is disparity/rate
+```{r, eval=F}
+for(k in 1:length(empirical.variances)){
+  empirical.variances[[k]]$disparity.rate <- empirical.variances[[k]][,2] / every.trait.rate[[k]][,2]
+}
+```
+now combine this with the same dataframe for the simulated data
+```{r, eval=F}
+combined.trait.disp <- NULL
+for(j in 1:length(empirical.variances)){
+  index <- ncol(sim.trait.disp)
+  current.sim <- cbind(sim.trait.disp, disparity.rate=empirical.variances[[j]]$disparity.rate)
+  current.sim$trait <- names(empirical.variances)[[j]]
+  combined.trait.disp <- rbind(combined.trait.disp, current.sim)
+}
+```
+and finally plot it.
+```{r, eval=F}
+ggplot(combined.trait.disp, aes(x=time)) +
+  geom_ribbon(aes(ymin=`5%`, ymax=`95%`),  fill="grey", alpha=0.25) + # 90% quantile
+  geom_ribbon(aes(ymin=`12.5%`, ymax=`87.5%`), fill="grey", alpha=0.25) + # 75% quantile
+  geom_ribbon(aes(ymin=`25%`, ymax=`75%`), fill="grey", alpha=0.25) + # 50% quantile
+  geom_ribbon(aes(ymin=`37.5%`, ymax=`62.5%`), fill="grey", alpha=0.25) + # 25% quantile
+  geom_line(aes(y=`50%`), linetype="dotted", color="darkGrey") + theme_classic() +
+  geom_line(aes(y=disparity.rate, color=trait), size=1.5) + 
+  xlim(c(-30,0)) + facet_wrap(~trait) + 
+  theme(legend.position = "none") + ylab("Disparity/Rate") + xlab("Time")
+```
+plot just the modules this time
+```{r, eval=F}
+ggplot(filter(combined.trait.disp, trait %in% c("head", "body", "tail", "limb")), aes(x=time)) +
+  #geom_segment(aes(x=-18,xend=-18,y=0,yend=120), lty="dotted") +
+  #geom_point(size=3, color="black", aes(x=-18,y=120)) + 
+  geom_ribbon(aes(ymin=`5%`,    ymax=`95%`),   fill="grey", alpha=0.25) + # 90% quantile
+  geom_ribbon(aes(ymin=`12.5%`, ymax=`87.5%`), fill="grey", alpha=0.25) + # 75% quantile
+  geom_ribbon(aes(ymin=`25%`,   ymax=`75%`),   fill="grey", alpha=0.25) + # 50% quantile
+  geom_ribbon(aes(ymin=`37.5%`, ymax=`62.5%`), fill="grey", alpha=0.25) + # 25% quantile
+  geom_line(aes(y=`50%`), linetype="dotted", color="darkGrey") + theme_classic() +
+  geom_line(aes(y=disparity.rate, color=trait), size=1.5) + 
+  xlim(c(-30,0)) + 
+  facet_wrap(~trait) + 
+  theme(legend.position = "none") + ylab("Disparity/Rate") + xlab("Time")
+```
+Just the traits
+```{r, eval=F}
+ggplot(filter(combined.trait.disp, !trait %in% c("head", "body", "tail", "limb")), aes(x=time)) +
+  geom_ribbon(aes(ymin=`5%`,    ymax=`95%`),   fill="grey", alpha=0.25) + # 90% quantile
+  geom_ribbon(aes(ymin=`12.5%`, ymax=`87.5%`), fill="grey", alpha=0.25) + # 75% quantile
+  geom_ribbon(aes(ymin=`25%`,   ymax=`75%`),   fill="grey", alpha=0.25) + # 50% quantile
+  geom_ribbon(aes(ymin=`37.5%`, ymax=`62.5%`), fill="grey", alpha=0.25) + # 25% quantile
+  geom_line(aes(y=`50%`), linetype="dotted", color="darkGrey") + theme_classic() +
+  geom_line(aes(y=disparity.rate, color=trait), size=1.5) + 
+  xlim(c(-30,0)) + 
+  facet_wrap(~trait) + 
+  theme(legend.position = "none") + ylab("Disparity/Rate") + xlab("Time")
+```
+
+```{r, eval=F}
+end.modules <- NULL
+for (k in 1:nrow(combined.trait.disp)){
+  if(combined.trait.disp[k,"trait"] %in% c("body","limb","tail","head")){end.modules <- append(end.modules, "module")}
+  else if(combined.trait.disp[k,"trait"] %in% c("Tail_Length","Tail_Width")){end.modules <- append(end.modules, "tail")}
+  else if(combined.trait.disp[k,"trait"] %in% c("Body_Width","Interlimb","Pelvic_Height","Pelvic_Width")){end.modules <- append(end.modules, "body")}
+  else if(combined.trait.disp[k,"trait"] %in% c("Eye_Diameter","Size","Neck","Pelvic_Gap")){end.modules <- append(end.modules, "unintegrated")}
+  else if(combined.trait.disp[k,"trait"] %in% c("Head_Depth","Head_Width","Pos_Skull","Snout_Eye")){end.modules <- append(end.modules, "head")}
+  else if(combined.trait.disp[k,"trait"] %in% c("Upper_Arm","Lower_Arm","Hand","Upper_Leg","Lower_Leg","Foot")){end.modules <- append(end.modules, "limb")}
+  else {end.modules <- append(end.modules, "butt")}
+}
+combined.trait.disp$module <- end.modules
+```
+Combine the modules and traits to plot together
+```{r, eval=F}
+combined.trait.disp <- mutate(combined.trait.disp,
+                            label = if_else(time == max(time), as.character(trait), NA_character_))
+```
+Plot the traits by aggregated by module
+```{r, eval=F}
+ggplot(combined.trait.disp, aes(x=time,y=disparity.rate)) +
+  geom_ribbon(aes(ymin=`5%`,    ymax=`95%`),   fill="grey", alpha=0.25) + # 90% quantile
+  geom_ribbon(aes(ymin=`12.5%`, ymax=`87.5%`), fill="grey", alpha=0.25) + # 75% quantile
+  geom_ribbon(aes(ymin=`25%`,   ymax=`75%`),   fill="grey", alpha=0.25) + # 50% quantile
+  geom_ribbon(aes(ymin=`37.5%`, ymax=`62.5%`), fill="grey", alpha=0.25) + # 25% quantile
+  geom_line(aes(y=`50%`), linetype="dotted", color="darkGrey") + theme_classic() +
+  geom_line(aes(y=disparity.rate, color=trait), size=1.5) + 
+  xlim(c(-30,0)) + 
+  facet_wrap(~module) + 
+  geom_label_repel(aes(label = label), nudge_x=20, na.rm = TRUE, max.overlaps = 20) +
+  theme(legend.position = "none") + ylab("Disparity/Rate") + xlab("Time")
+```
+
+
+Save a bunch of the objects that we used for plotting and are valuable
+```{r, eval=F}
+save(empirical.variances, sim.trait.disp, var.list, div.list, combined.trait.disp, file="Extracted_Disparity_Data.RData")
+```
+
+Just look at *INTERLIMB*
+```{r, eval=F}
+ggplot(filter(combined.trait.disp, trait == "Tail_Length"), aes(x=time)) +
+  geom_ribbon(aes(ymin=`5%`,    ymax=`95%`),   fill="grey", alpha=0.25) + # 90% quantile
+  geom_ribbon(aes(ymin=`12.5%`, ymax=`87.5%`), fill="grey", alpha=0.25) + # 75% quantile
+  geom_ribbon(aes(ymin=`25%`,   ymax=`75%`),   fill="grey", alpha=0.25) + # 50% quantile
+  geom_ribbon(aes(ymin=`37.5%`, ymax=`62.5%`), fill="grey", alpha=0.25) + # 25% quantile
+  geom_line(aes(y=`50%`), linetype="dotted", color="darkGrey") + theme_classic() +
+  geom_line(aes(y=disparity.rate, color=trait), size=1.5) + 
+  xlim(c(-30,0)) + 
+  #facet_wrap(~trait) + 
+  geom_vline(xintercept = -18.4, col="red") + geom_vline(xintercept = -12.2, col="blue") +
+  theme(legend.position = "none") + ylab("Disparity/Rate") + xlab("Time")
+```
+
+
+
+
+\pagebreak
+
+Plotting trait covariances in comparison to simulations.  
+Let's start with the *TAIL*
+```{r, eval=F}
+tail.points <- data.frame(all.modules$tail, data="empirical")
+for (k in 1:length(mvBM.simulated$tail)){
+  tail.points <- rbind(tail.points, data.frame(as.data.frame(mvBM.simulated$tail[[k]]), data = "simulated"))}
+tail.points$Genus <- sapply(rownames(tail.points), function(x) strsplit(x, "_")[[1]][1])
+
+ggplot(tail.points) + 
+  geom_point(dplyr::filter(  tail.points, data=="simulated"), mapping=aes(Tail_Length, Tail_Width), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(  tail.points, data=="empirical"), mapping=aes(Tail_Length, Tail_Width, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(tail.points, data=="simulated"), mapping=aes(Tail_Length, Tail_Width), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+```
+
+Or plot as Hex figures
+```{r, eval=F}
+tail.points <- data.frame(all.modules$tail, data="empirical")
+for (k in 1:length(mvBM.simulated$tail)){
+  tail.points <- rbind(tail.points, data.frame(as.data.frame(mvBM.simulated$tail[[k]]), data = "simulated"))}
+tail.points$Genus <- sapply(rownames(tail.points), function(x) strsplit(x, "_")[[1]][1])
+
+ggplot(tail.points) + 
+  geom_hex(dplyr::filter(tail.points, data=="simulated"), mapping=aes(Tail_Length, Tail_Width),
+           binwidth = c(0.5, 0.05), alpha=0.75) +
+  scale_fill_distiller(palette="RdYlBu", direction=-1) + 
+  geom_point(dplyr::filter(  tail.points, data=="empirical"), mapping=aes(Tail_Length, Tail_Width, col=Genus), size=2) +
+  stat_ellipse(dplyr::filter(tail.points, data=="simulated"), mapping=aes(Tail_Length, Tail_Width), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+```
+
+
+```{r, eval=F}
+get_density <- function(x, y, ...) {
+  dens <- MASS::kde2d(x, y, ...)
+  ix <- findInterval(x, dens$x)
+  iy <- findInterval(y, dens$y)
+  ii <- cbind(ix, iy)
+  return(dens$z[ii])
+}
+# function from: https://slowkow.com/notes/ggplot2-color-by-density/
+```
+
+```{r, eval=F}
+tail.points$density <- get_density(tail.points$Tail_Length, tail.points$Tail_Width, n=100)
+
+ggplot(tail.points) +
+  geom_point(dplyr::filter(tail.points, data=="simulated"), mapping=aes(Tail_Length, Tail_Width, color=density)) +
+  scale_color_distiller(palette="RdYlBu") +
+  geom_point(dplyr::filter(tail.points, data=="empirical"), mapping=aes(Tail_Length, Tail_Width, fill=Genus), size=2, color="black", shape=21) + 
+  stat_ellipse(dplyr::filter(tail.points, data=="simulated"), mapping=aes(Tail_Length, Tail_Width), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+```
+
+
+
+
+Next we can try the *BODY*
+<!--
+```{r, eval=F}
+body.points <- data.frame(all.modules$body, data="empirical")
+for (j in 1:length(mvBM.simulated$body)){
+  body.points <- rbind(body.points, data.frame(as.data.frame(mvBM.simulated$body[[j]]), data="simulated"))}
+body.points$Genus <- sapply(rownames(body.points), function(x) strsplit(x, "_")[[1]][1])
+
+iw <- ggplot(body.points) + 
+  geom_point(dplyr::filter(body.points, data=="simulated"),   mapping=aes(Interlimb, Body_Width), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(body.points, data=="empirical"),   mapping=aes(Interlimb, Body_Width, col=Genus)) + 
+  stat_ellipse(dplyr::filter(body.points, data=="simulated"), mapping=aes(Interlimb, Body_Width), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+pel <- ggplot(body.points) + 
+  geom_point(dplyr::filter(body.points, data=="simulated"),   mapping=aes(Pelvic_Width, Pelvic_Height), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(body.points, data=="empirical"),   mapping=aes(Pelvic_Width, Pelvic_Height, col=Genus)) + 
+  stat_ellipse(dplyr::filter(body.points, data=="simulated"), mapping=aes(Pelvic_Width, Pelvic_Height), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+(iw + pel) + plot_layout(guides="collect") & theme(legend.position="bottom")
+```
+-->
+
+
+
+<!--
+```{r, eval=F}
+body.points <- data.frame(all.modules$body, data="empirical")
+for (j in 1:length(mvBM.simulated$body)){
+  body.points <- rbind(body.points, data.frame(as.data.frame(mvBM.simulated$body[[j]]), data="simulated"))}
+body.points$Genus <- sapply(rownames(body.points), function(x) strsplit(x, "_")[[1]][1])
+
+iw <- ggplot(body.points) + 
+  geom_hex(dplyr::filter(body.points, data=="simulated"),   mapping=aes(Interlimb, Body_Width), binwidth = c(0.5, 0.05), alpha=0.75) + 
+    scale_fill_distiller(palette="RdYlBu", direction=-1) + 
+  geom_point(dplyr::filter(body.points, data=="empirical"),   mapping=aes(Interlimb, Body_Width, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(body.points, data=="simulated"), mapping=aes(Interlimb, Body_Width), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+pel <- ggplot(body.points) + 
+  geom_hex(dplyr::filter(body.points, data=="simulated"),   mapping=aes(Pelvic_Width, Pelvic_Height), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) + 
+  geom_point(dplyr::filter(body.points, data=="empirical"),   mapping=aes(Pelvic_Width, Pelvic_Height, col=Genus)) + 
+  stat_ellipse(dplyr::filter(body.points, data=="simulated"), mapping=aes(Pelvic_Width, Pelvic_Height), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+(iw + pel) + plot_layout(guides="collect") & theme(legend.position="bottom")
+```
+
+
+
+What about the *LIMB*
+<!--
+```{r, eval=F}
+limb.points <- data.frame(all.modules$limb, data="empirical")
+for (k in 1:length(mvBM.simulated$tail)){limb.points <- rbind(limb.points, data.frame(as.data.frame(mvBM.simulated$limb[[k]]), data = "simulated"))}
+limb.points$Genus <- sapply(rownames(limb.points), function(x) strsplit(x, "_")[[1]][1])
+
+hf <- ggplot(limb.points) + 
+  geom_point(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Hand, Foot), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Hand, Foot, color=Genus)) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Hand, Foot), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+arm <- ggplot(limb.points) + 
+  geom_point(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Upper_Arm, Lower_Arm), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Upper_Arm, Lower_Arm, col=Genus)) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Upper_Arm, Lower_Arm), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+leg <- ggplot(limb.points) + 
+  geom_point(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Upper_Leg, Lower_Leg), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Upper_Leg, Lower_Leg, col=Genus)) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Upper_Leg, Lower_Leg), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+hu <- ggplot(limb.points) + 
+  geom_point(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Hand, Upper_Arm), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Hand, Upper_Arm, col=Genus)) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Hand, Upper_Arm), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+fu <- ggplot(limb.points) + 
+  geom_point(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Foot, Upper_Leg), color="grey", alpha=0.10) + 
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Foot, Upper_Leg, col=Genus)) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Foot, Upper_Leg), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+# plt 
+(hf + arm + leg + hu + fu) + plot_layout(guides="collect") & theme(legend.position="bottom")
+```
+-->
+
+
+<!--
+```{r, eval=F}
+limb.points <- data.frame(all.modules$limb, data="empirical")
+for (k in 1:length(mvBM.simulated$tail)){limb.points <- rbind(limb.points, data.frame(as.data.frame(mvBM.simulated$limb[[k]]), data = "simulated"))}
+limb.points$Genus <- sapply(rownames(limb.points), function(x) strsplit(x, "_")[[1]][1])
+
+hf <- ggplot(limb.points) + 
+  geom_hex(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Hand, Foot), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) + 
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Hand, Foot, color=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Hand, Foot), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+arm <- ggplot(limb.points) + 
+  geom_hex(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Upper_Arm, Lower_Arm), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) +
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Upper_Arm, Lower_Arm, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Upper_Arm, Lower_Arm), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+leg <- ggplot(limb.points) + 
+  geom_hex(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Upper_Leg, Lower_Leg), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) + 
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Upper_Leg, Lower_Leg, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Upper_Leg, Lower_Leg), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+hu <- ggplot(limb.points) + 
+  geom_hex(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Hand, Upper_Arm), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) +
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Hand, Upper_Arm, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Hand, Upper_Arm), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+fu <- ggplot(limb.points) + 
+  geom_hex(dplyr::filter(  limb.points, data=="simulated"), mapping=aes(Foot, Upper_Leg), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) +
+  geom_point(dplyr::filter(  limb.points, data=="empirical"), mapping=aes(Foot, Upper_Leg, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(limb.points, data=="simulated"), mapping=aes(Foot, Upper_Leg), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+# plt 
+
+((arm + leg) / (hu + fu) / (hf + hf)) + plot_layout(guides="collect") & theme(legend.position="bottom")
+```
+
+
+
+What about the *HEAD*
+```{r, eval=F}
+head.points <- data.frame(all.modules$head, data="empirical")
+for (k in 1:length(mvBM.simulated$tail)){head.points <- rbind(head.points, data.frame(as.data.frame(mvBM.simulated$head[[k]]), data = "simulated"))}
+head.points$Genus <- sapply(rownames(head.points), function(x) strsplit(x, "_")[[1]][1])
+
+wd <- ggplot(head.points) + 
+  geom_hex(dplyr::filter(  head.points, data=="simulated"), mapping=aes(Head_Width, Head_Depth), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) + 
+  geom_point(dplyr::filter(  head.points, data=="empirical"), mapping=aes(Head_Width, Head_Depth, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(head.points, data=="simulated"), mapping=aes(Head_Width, Head_Depth), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+snsk <- ggplot(head.points) + 
+  geom_hex(dplyr::filter(  head.points, data=="simulated"), mapping=aes(Snout_Eye, Pos_Skull), binwidth = c(0.05, 0.05), alpha=0.75) + 
+      scale_fill_distiller(palette="RdYlBu", direction=-1) + 
+  geom_point(dplyr::filter(  head.points, data=="empirical"), mapping=aes(Snout_Eye, Pos_Skull, col=Genus), size=2) + 
+  stat_ellipse(dplyr::filter(head.points, data=="simulated"), mapping=aes(Snout_Eye, Pos_Skull), type="t", level=0.95, linetype="dotted") +
+  theme_classic() + theme(legend.position="bottom")
+
+(wd + snsk) + plot_layout(guides="collect") & theme(legend.position="bottom")
+```
+
+
+
+
+
+Before getting started with *hypervolume*, have a quick read throught the [FAQ](https://benjaminblonder.org/hypervolume_faq.html). Paying special attention to the section about rescaling your data.
+
+```{r, eval=F}
+library(hypervolume)
+```
+
+
+```{r, message = F, eval=F}
+near.end <- filter(all.anc, time == 4)
+near.end <- select(near.end, -time)
+hy25 <- hypervolume(near.end, method = "svm")
+```
+
+
+No we'll extract the modules for each clade and estimate the mean evolutionary rate to compare against module integration (rho) and trait disparity.
+```{r, eval=F}
+lisso <- extract.clade(egernia.tree, node=64)
+  lisso.modules <- lapply(all.modules, function(x) x[which(rownames(x) %in% lisso$tip.label),])
+    lisso.modules <- lisso.modules[1:4]
+cyc.til <- extract.clade(egernia.tree, node=77)
+  cyc.til.modules <- lapply(all.modules, function(x) x[which(rownames(x) %in% cyc.til$tip.label),])
+    cyc.til.modules <- cyc.til.modules[1:4]
+bel.eg <- extract.clade(egernia.tree, 93)
+  bel.eg.modules <- lapply(all.modules, function(x) x[which(rownames(x) %in% bel.eg$tip.label),])
+    bel.eg.modules <- bel.eg.modules[1:4]
+
+lisso.fit <- lapply(lisso.modules, function(x) mvBM(lisso, x, model="BM1", method="pic"))
+    lisso.rates <- lapply(lisso.fit, function(x) diag(x$sigma))
+        lisso.rates <- data.frame(unlist(lisso.rates)); colnames(lisso.rates) <- "rate"
+            lisso.rates$group <- "Lissolepis"
+cyc.til.fit <- lapply(cyc.til.modules, function(x) mvBM(cyc.til, x, model="BM1", method="pic"))
+    cyctil.rates <- lapply(cyc.til.fit, function(x) diag(x$sigma))
+        cyctil.rates <- data.frame(unlist(cyctil.rates)); colnames(cyctil.rates) <- "rate"
+            cyctil.rates$group <- "Cyclodomorphus_Tiliqua"
+bel.eg.fit <- lapply(bel.eg.modules, function(x) mvBM(bel.eg, x, model="BM1", method="pic"))
+    beleg.rates <- lapply(bel.eg.fit, function(x) diag(x$sigma))
+        beleg.rates <- data.frame(unlist(beleg.rates)); colnames(beleg.rates) <- "rate"
+            beleg.rates$group <- "Bellatorias_Egernia"
+
+clade.rates <- rbind(lisso.rates, cyctil.rates, beleg.rates)
+write.csv(clade.rates, "/Users/Ian/Documents/GitHub/Egernia_Evolution/Data/Clade_Rates.csv", row.names = T, quote=F)
+```
+
+
+
+```{r, eval=F}
+lisso.disp <- data.frame(unlist(lapply(lisso.modules, function(y) apply(y, 2, function(x) disparity(data=x)))))
+    colnames(lisso.disp) <- "disparity"; lisso.disp$group <- "Liopholis_Lissolepis"
+cyctil.disp <- data.frame(unlist(lapply(cyc.til.modules, function(y) apply(y, 2, function(x) disparity(data=x)))))
+    colnames(cyctil.disp) <- "disparity"; cyctil.disp$group <- "Cyclodomorphus_Tiliqua"
+beleg.disp <- data.frame(unlist(lapply(bel.eg.modules, function(y) apply(y, 2, function(x) disparity(data=x)))))
+    colnames(beleg.disp) <- "disparity"; beleg.disp$group <- "Bellatorias_Egernia"
+    
+clade.disparity <- rbind(lisso.disp, cyctil.disp, beleg.disp) 
+write.csv(clade.disparity, "/Users/Ian/Documents/GitHub/Egernia_Evolution/Data/Clade_Disparity.csv", row.names = T, quote=F)
+
+```
+
+
+
+```{r, eval=F}
+sim.head <- data.frame(unlist(lapply(mvBM.simulated$head, function(y) apply(y, 2, function(x) disparity(data=x)))))
+    colnames(sim.head) <- "disparity"; sim.head$module <- "head"
+sim.body <- data.frame(unlist(lapply(mvBM.simulated$body, function(y) apply(y, 2, function(x) disparity(data=x)))))
+    colnames(sim.body) <- "disparity"; sim.body$module <- "body"
+sim.limb <- data.frame(unlist(lapply(mvBM.simulated$limb, function(y) apply(y, 2, function(x) disparity(data=x)))))
+    colnames(sim.limb) <- "disparity"; sim.limb$module <- "limb"
+sim.tail <- data.frame(unlist(lapply(mvBM.simulated$tail, function(y) apply(y, 2, function(x) disparity(data=x)))))
+    colnames(sim.tail) <- "disparity"; sim.tail$module <- "tail"
+    
+all.sim <- rbind(sim.head, sim.body, sim.limb, sim.tail)
+write.csv(all.sim, file="/Users/Ian/Documents/GitHub/Egernia_Evolution/Data/Sim_Clade_Rates.csv")
+```
+
+```{r, eval=F}
+sim.rates <- read.csv(file="/Users/Ian/Documents/GitHub/Egernia_Evolution/Data/Sim_Clade_Rates.csv")
+ggplot(sim.rates, aes(x=log(evo_rate), y=log(disparity), color=module)) +
+                    geom_point() + theme_classic() + scale_color_brewer(palette="Spectral") + theme(legend.position="bottom")
+
+sim.rates$empirical <- "no"
+evo.rates$empirical <- "yes"
+both.rates <- rbind(sim.rates[c("evo_rate","module","disparity","empirical")], evo.rates[c("evo_rate","module","disparity","empirical")])
+
+ggplot(both.rates) +
+      geom_point(dplyr::filter(both.rates, empirical=="no"), mapping=aes(x=log(evo_rate),y=log(disparity)), color="grey", alpha=0.1, size=2) +
+      #geom_hex(dplyr::filter(both.rates, empirical=="no"), mapping=aes(x=log(evo_rate),y=log(disparity))) + 
+      scale_fill_distiller(palette="RdYlBu") +
+      geom_point(dplyr::filter(both.rates, empirical=="yes"), mapping=aes(x=log(evo_rate),y=log(disparity), color=module), size=3) +
+      theme_classic() + scale_color_brewer(palette="Spectral") +  theme(legend.position="bottom")
+
+```
+
+-->
