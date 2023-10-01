@@ -11,7 +11,7 @@ Each directory includes a summary of the associated files.
 
 ---
 
-### [Alignments]()
+### [Alignments](Alignments/)
 + Individual, concatenated, and codon partitioned alignments. 
 
 ---
