@@ -16,31 +16,31 @@ Each directory includes a summary of the associated files.
 
 ---
 
-### [Data]()
+### [Data](Data/)
 + Input raw and processed data files, and RData objects for recreating analyses. 
 
 ---
 
-### [Figures]()
+### [Figures](Figures/)
 + Main text figures, supplementary figures, animal illustrations, and components. 
 
 ---
 
-## [Manuscript]()
+## [Manuscript](Manuscript/)
 + All original and revised manuscript files
 
 ---
 
-### [Scripts]()
+### [Scripts](Scripts/)
 + Code for analyzing the data and generating figures
 
 ---
 
-### [Trees]()
+### [Trees](Trees/)
 + Resulting phylogenetic estimates. 
 
 ___
 
-## [Walkthrough]()
+## [Walkthrough](Walkthrough/)
 + A general walkthrough of the methods, data, and analyses. 
 
