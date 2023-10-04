@@ -1,5 +1,5 @@
 ---
-title: "Egernia Morphological Evolution"
+title: "Tiliquini Morphological Evolution"
 date: "Ian G. Brennan: `r format(Sys.time(), '%B, %Y')`"
 output:
   html_document:
@@ -16,31 +16,16 @@ opts_knit$set(root.dir = "/Users/ianbrennan/Documents/GitHub/Tiliquini/Data")
 #opts_knit$set(root.dir = "/Users/Ian/Documents/GitHub/Egernia_Evolution/Data")
 ```
 
+\  
+
+---
+
+# Introduction
+
 Below is the general workflow for replicating our analyses of trait evolution in Tiliquini skinks. While we provide the scripts to redo everything from scratch, we also include Rdata files that will give you the output from model fits, objects, etc., to speed up the process. 
 
 
-Load necessary packages
-```{r, eval=F, echo=T, message=F, warning=F, include=F}
-library(dplyr)
-library(ggplot2)
-library(ggfortify)
-library(plotly)
-library(treedata.table)
-library(phytools)
-library(RColorBrewer)
-library(tidyr)
-library(corrplot)
-library(RPANDA)
-library(l1ou)
-library(RRphylo)
-library(dispRity)
-library(Rmisc)
-library(mvMORPH)
-library(ggforce)
-library(concaveman)
-```
-
-Load necessary packages
+Load some necessary packages. We'll need others later but will add them as we go. 
 ```{r, eval=T, echo=T, message=F, warning=F}
 library(ape)
 library(phytools)
@@ -53,11 +38,15 @@ library(dplyr)
 Let's save some time and start by loading our data.
 ```{r, eval=T}
 load("Egernia_Data.RData", verbose=T)
-plot(egernia.tree, cex=0.3); axisPhylo()
+```
+
+And we'll have a look at the tree we're going to use. 
+```{r, eval=T}
+plot(egernia.tree, cex=0.5); axisPhylo()
 ```
 
 
-We'll also quickly put all our traits into a single data frame for use later.
+The *all.modules* object is a list of data frames that hold all the trait data. We'll quickly put all our traits into a single data frame for use later.
 ```{r, eval}
 all.traits <- bind_cols(all.modules$head, all.modules$body, all.modules$tail, all.modules$limb,
                         all.modules$size, all.modules$neck, all.modules$eye)
@@ -75,11 +64,29 @@ source("../Scripts/trait.at.time.R")
 
 ---
 
-## Determining Morphological Modules
+# Determining Morphological Modules
 
-Now let's think about how different modules are integrated. 
+Let's think about how the body plan might be split up into modules that evolve under different pressures, rates, and modes. Individual traits might covary with others as a result of development or selective pressures or many other reasons. These covarying traits may together constitute modules, e.g. snout length (log-shape ratios) and head with might be part of a common 'head' module. We can quickly visualize how the size-corrected traits covary generally. 
 
-We will create some models to test the modularity hypotheses.  
+```{r}
+library(corrplot)
+
+colorder <- c("Head_Width", "Head_Depth", "Pos_Skull", "Snout_Eye", "Eye_Diameter",
+              "Body_Width", "Interlimb", "Pelvic_Height", "Pelvic_Width",
+              "Upper_Arm", "Lower_Arm", "Hand", "Upper_Leg", "Lower_Leg", "Foot",
+              "Tail_Width", "Tail_Length",
+              "Neck", "Size")
+corrLSR <- all.traits[,colorder]
+
+corr.small <- as.matrix(cor(corrLSR))
+#corrplot::corrplot.mixed(corr.small, lower="ellipse", upper="number")
+corrplot(corr.small)
+```
+
+You'll notice that some groups of traits (hand/foot/leg elements) show strong positive covariance. Same for others like head width/depth. 
+
+
+We can create some models to test basic modularity hypotheses.  
 We'll use the R package *EMMLi* to identify morphological modules of the lizard body.
 ```{r}
 library(EMMLi)
@@ -168,6 +175,7 @@ for(j in 1:length(l1ou.trees)){
 
 We'll start by fitting a standard set of comparative models (BM, OU, EB) and Levy models in *pulsR*.  
 Code for running those models across all traits individually is contained in [RUN_pulsR.R](../Scripts/RUN_pulsR.R). 
+For the sake of brevity, we won't run the models here because they take a while.
 
 
 ## Variable Rates Model
@@ -190,15 +198,19 @@ for(j in 1:length(all.modules)){
 
 Format your BayesTraits control file.
 ```{bash, eval=F}
-7
-2
-VarRates
-Burnin 10000000
-Iterations 110000000
-Run
+7 # independent contrasts
+2 # MCMC (Markov Chain Monte Carlo)
+VarRates # specify the Variable Rates model
+Burnin 10000000 # give the MCMC plenty of burn-in
+Iterations 110000000 # total generation length (Iterations - Burnin = Sample)
+Run # tell it to run the analysis
 ```
 
-Once you've run all those analyses and confirmed convergence/stationarity, the next step will be to process the BayesTraits outputs. This can be slightly complicated without a helper file. Use the [process_PPP]() function in [plotting_BayesTraits.R](../Scripts/plotting_BayesTraits.R) to process the outputs. You can do this following the [RUN_BayesTraits_VarRates_Likelihoods.R](../Scripts/RUN_BayesTraits_VarRates_Likelihoods.R) script. The same script will also allow you to extract comparable AIC values for model comparison. 
+
+
+
+Once you've run all those analyses and confirmed convergence/stationarity, the next step will be to process the BayesTraits outputs. This can be slightly complicated without a helper file. Use the `process_PPP` function in [plotting_BayesTraits.R](../Scripts/plotting_BayesTraits.R) to process the outputs. You can do this following the [RUN_BayesTraits_VarRates_Likelihoods.R](../Scripts/RUN_BayesTraits_VarRates_Likelihoods.R) script. The same script will also allow you to extract comparable AIC values for model comparison. 
+
 
 ## Model Comparison 
 
@@ -227,6 +239,21 @@ aicw.types.plot / aicw.all.plot
 
 ```
 
+
+Lastly we want to be able to tell if there are specific models that are favored for individual traits.
+We designate a model as 'preferred' if it has 2x the AICw of the next best model
+```{r}
+sig.fit <- NULL
+for(k in 1:length(trait.aicw.types)){
+  curr.res <- sort(trait.aicw.types[[k]], decreasing=T)
+  if(curr.res[[1]]/curr.res[[2]] > 2){sig.fit <- append(sig.fit, names(curr.res)[[1]])}
+  if(curr.res[[1]]/curr.res[[2]] <= 2){sig.fit <- append(sig.fit, "none preferred")}
+}
+names(sig.fit) <- names(trait.aicw.types)
+data.frame(Preferred_Model = sig.fit[order(names(sig.fit))])
+```
+
+
 ---
 
 # Visualizing Variable Rates Models
@@ -249,7 +276,7 @@ Here's an explanation of what each of those elements is:
 ## Plot BayesTraits Trees with Shifts
 
 To visualize the rates and shifts across the tree use the [plot.VarRates.tree]() function.
-```{r, eval=T}
+```{r, eval=T, message=F, warning=F}
 source("../Scripts/plotting_BayesTraits.R")
 plot.VarRates.tree(BT = all.BT$all.res$BodyWidth, # res object for focal trait
                    phy = all.BT$scalar.trees$BodyWidth, # tree for focal trait
@@ -269,13 +296,15 @@ We can also apply this across all the traits simultaneously.
 # plot all the trees with edges colored by rates
 par(mfrow=c(2,2))
 # plot the scalar transformed trees
-for(j in 1:length(all.BT$all.trees)){plot.VarRates.tree(BT=all.BT$all.res[[j]], phy=all.BT$scalar.trees[[j]], col.palette="YlOrRd", legend=F, tree.type="phylogram", log.rates=T, trait=names(all.BT$all.res)[[j]], outline=F, pos.selection=T, shift.rates=T)}
+for(j in 1:4){plot.VarRates.tree(BT=all.BT$all.res[[j]], phy=all.BT$scalar.trees[[j]], col.palette="YlOrRd", legend=F, tree.type="phylogram", log.rates=T, trait=names(all.BT$all.res)[[j]], outline=F, pos.selection=T, shift.rates=T)}
 ```
 
+---
 
 ## Plot Rate and Disparity Through Time
 
-Start by reading in the Median Scalar Trees (all.BT$scalar.trees) from file if you'd like
+Start by reading in the Median Scalar Trees (all.BT$scalar.trees) from file if you'd like. 
+We'll need these for most of the visualizations going forward. 
 ```{r}
 all.trees <- read.nexus(file="../Trees/BayesTraits_VarRates_Egerniinae_MorphTraits_Scalar.trees")
 plot(all.trees$Body_Width, show.tip.label = F); axisPhylo()
@@ -284,7 +313,7 @@ all.trees <- all.trees[colnames(all.traits)]
 ```
 
 
-
+### Disparity Through Time
 We'll extract the ancestral trait values for each trait
 ```{r, eval=F}
 anc.traits <- NULL; anc.all.traits <- NULL
@@ -344,6 +373,7 @@ ggplot(emp.dis.df) +
   theme_classic() + theme(legend.position="none")
 ```
 
+### Rate Through Time
 
 Ok let's apply the same principles to the rates. I'll call this **Rate-at-Time**
 ```{r}
@@ -395,10 +425,13 @@ p1
 ```
 
 
+---
 
-
+# Variable Rates of Modules
 
 Up until now we've been looking at rates and disparity of individual traits. We'll shift now to looking at trends in modules (head, body, tail, limbs). 
+
+## Rate Trajectories (Rate/Trait-grams)
 
 ```{r}
 source("../Scripts/rate.trajectory.R")
@@ -467,6 +500,7 @@ rate.trajectory.BT.module(tree = egernia.tree, module = anc.modules$limb,
 ```
 
 
+## Rate-to-Node Trajectories
 
 It's great that we can show the rates along individual branches, but we might want to look at the rates of branches with inferred rate shifts against the background rate. 
 
@@ -486,6 +520,8 @@ Tail Module
 rate.to.node.BT(phy=egernia.tree, PPP.obj=rate.list$tail, psize=3, lsize=2, log.rates=T, col.palette="YlOrRd")
 ```
 
+
+## Sim-to-Node and Morpho-Trajectories
 
 Last we'll do the morphotrajectory and sim-to-node plots.
 ```{r, message=F, warning=F}
@@ -510,9 +546,380 @@ sim.to.node(phy=egernia.tree, VRphy=all.BT$scalar.trees$Tail,
             tip="Liopholis_whitii", sim.num=500)
 ```
 
-```{r, eval=F}
-# RUN_BayesTraits_VarRates_Output.R
+
+
+The above plot shows us how trait variance accumulates under simulated BM and in our empirical data, and we can see that the distance in trait-space travelled between parent and child (ancestor and descendant) nodes is sometimes great. Let's actually compare if some of those distances travelled are greater than we'd expect under BM. 
+```{r}
+body.dbn <- distance.btwn.nodes(phy = egernia.tree,
+                                VRphy = all.BT$scalar.trees$Body,
+                                trait = all.modules$body,
+                                tip = "Cyclodomorphus_michaeli",
+                                sim.num = 100,
+                                stat = "quantile")
+
+head.dbn <- distance.btwn.nodes(phy = egernia.tree,
+                                VRphy = all.BT$scalar.trees$Head,
+                                trait = all.modules$head,
+                                tip = "Tiliqua_rugosa",
+                                sim.num = 100,
+                                stat = "quantile")
+
+tail.dbn <- distance.btwn.nodes(phy = egernia.tree,
+                                VRphy = all.BT$scalar.trees$Tail,
+                                trait = all.modules$tail,
+                                tip = "Egernia_zellingi",
+                                sim.num = 100,
+                                stat = "quantile")
+
+limb.dbn <- distance.btwn.nodes(phy = egernia.tree,
+                                VRphy = all.BT$scalar.trees$Limb,
+                                trait = all.modules$limb,
+                                tip = "Tiliqua_rugosa",
+                                sim.num = 100,
+                                stat = "quantile")
+
+(limb.dbn + tail.dbn) /
+  (body.dbn + head.dbn)
 ```
+
+Here we can see that nodes that are significantly above 0 (including the gray shaded quantiles) show greater trait evolution than expected under BM diffusion. This suggests huge trait changes are sometimes confined to individual branches. 
+
+
+
+
+
+---
+
+
+# Elaboration and Innovation
+
+When looking across many morphological traits, change along some axes seems to be more likely than others. This suggests morphological "lines of least resistance" or a major elaborative axis along which the majority of change occurs. In contrast, minor axes of change contribute to novel morphologies via innovative change (away from existing phenotypes). We can quantify and visualize these elaborative and innovative changes. 
+
+```{r, message=F, warning=F}
+source("../Scripts/PLOT_innovate_elaborate.R")
+```
+
+
+```{r}
+load("BayesTraits_ancestral_traits.Rdata", verbose=T)
+anc.all.df <- data.frame(anc.all.traits)
+```
+
+
+## Elaboration and Innovation on Branches
+
+The `innovate.elaborate.phy` function will do the following things:
+1. perform PCA on all traits provided in the arg. `trait.df`
+2. run a linear model on the two requested axes arg. `PCs`
+3. recenter the regression through the estimated root values and correct the residuals
+4. for each parent-child pair of nodes determine the euclidean distance and the angle of change
+5. color branches as either elaborative (blues) or innovative (oranges) and scale the hue by the amount of change (lighter--less change; darker--more change)
+
+```{r}
+# start with the full dataset
+total.ie.phy <- innovate.elaborate.phy(trait.df = anc.all.df, 
+                                       phy=egernia.tree, plot=T, summary=T, 
+                                       angles="equal", PCs=c(1,2))
+```
+
+In case you were curious about how 
+```{r}
+total.rotation <- plot.rotations(total.ie.phy$pca, plot=T)
+```
+
+You might be interested in applying the framework to individual modules. Here we'll look at what this looks like in the limb module. 
+```{r}
+limb.ie.phy <- innovate.elaborate.phy(trait.df = select(anc.all.df, Upper_Leg,Lower_Leg,Foot,
+                                                        Upper_Arm,Lower_Arm,Hand),
+                                      phy=egernia.tree, plot=T, summary=T, angles="equal", PCs=c(1,2))
+limb.rotation <- plot.rotations(limb.ie.phy$pca, plot=T)
+```
+
+## Elaboration and Innovation Across Clades
+
+Let's visualize the relationship between primary elaborative and innovative axes. 
+```{r}
+all.traits$Genus <- sapply(rownames(all.traits), function(x) strsplit(x, "_")[[1]][1])
+pca.all <- all.traits %>%
+  select(-Genus) %>%
+  prcomp()
+pca.all.x <- data.frame(pca.all$x)
+pca.all.x$Genus <- all.traits$Genus
+pca.all.x$Genus_New <- unlist(sapply(pca.all.x$Genus, function(x) 
+  if(x=="Bellatorias") paste("Bel_Ege")
+  else if(x=="Egernia") paste("Bel_Ege")
+  else if(x=="Corucia") paste("Cor")
+  else if(x=="Tribolonotus") paste("Tri")
+  else if(x=="Cyclodomorphus") paste("Cyc_Til")
+  else if(x=="Tiliqua") paste("Cyc_Til")
+  else if(x=="Liopholis") paste("Lio")
+  else if(x=="Lissolepis") paste("Lis")))
+
+ggplot(data=pca.all.x, aes(x=PC1,y=PC2)) +
+  geom_point(aes(color=Genus_New)) +
+  geom_smooth(method="lm", se=F, aes(color=Genus_New)) +
+  #stat_ellipse(aes(color=Genus_New), lty="dotted") +
+  geom_smooth(data=transform(pca.all.x, Genus_New=NULL),
+              method="lm", se=F, color="black", lty="dotted") +
+  scale_color_brewer(palette="Paired") +
+  #scale_color_scico_d(palette="batlow") +
+  theme_classic()
+```
+
+You'll notice that the relationship between the first two PC axes is actually really quite different among the major clades. The overall trend (regression) is indicated by the dotted line (slope = 0). Cyclodomorphus/Tiliqua have a positive slope suggesting increasing tail length with increasing interlimb length. Interestingly we see the opposite in Bellatorias/Egernia and Liopholis.  
+
+
+ 
+
+## Elaboration and Innovation Through Time
+
+Above we've seen how the relationship between primary axes can change across groups. However, we might be interested to see how this relationship changes through time. We can plot the regression among any taxa living at a given point in time (generally estimated ancestors at nodes). 
+
+The below function `inn.elab.tt` (innovate-elaborate-through-time) will do that for us.
+```{r}
+# visualize change in major axis (elaboration) through time for the whole tree
+pca.all <- prcomp(anc.all.df)$x
+inn.elab.tt(phy=egernia.tree, trait.df=anc.all.df, pca=pca.all, base.color="Reds")
+```
+
+
+
+
+
+INNOVATE ELABORATE TO WORK THROUGH
+```{r, eval=F, include=F, echo=F}
+
+til.cyc <- all.traits %>% 
+  filter(Genus %in% c("Cyclodomorphus","Tiliqua")) %>%
+  select(-Genus) %>%
+  innovate.elaborate(trait.df=., plot=T, summary=T)
+cyclo <- all.traits %>% 
+  filter(Genus %in% c("Cyclodomorphus")) %>%
+  select(-Genus) %>%
+  innovate.elaborate(trait.df=., plot=T, summary=T)
+tiliqua <- all.traits %>% 
+  filter(Genus %in% c("Tiliqua")) %>%
+  select(-Genus) %>%
+  innovate.elaborate(trait.df=., plot=T, summary=T)
+bel.ege <- all.traits %>% 
+  filter(Genus %in% c("Egernia","Bellatorias")) %>%
+  select(-Genus) %>%
+  innovate.elaborate(trait.df=., plot=T, summary=T)
+bellatorias <- all.traits %>% 
+  filter(Genus %in% c("Bellatorias")) %>%
+  select(-Genus) %>%
+  innovate.elaborate(trait.df=., plot=T, summary=T)
+lislio <- all.traits %>%
+  filter(Genus %in% c("Lissolepis","Liopholis")) %>%
+  select(-Genus) %>%
+  innovate.elaborate(trait.df=., plot=T, summary=T)
+liopholis <- all.traits %>%
+  filter(Genus %in% c("Liopholis")) %>%
+  select(-Genus) %>%
+  innovate.elaborate(trait.df=., plot=T, summary=T)
+
+sim.liopholis <- NULL
+for (j in 1:length(mvBM.simulated$head)){
+  curr.sim <- dplyr::filter(mvBM.simulated$head[[j]], Genus %in% c("Liopholis"))
+  sim.liopholis <- rbind(sim.liopholis, curr.sim)
+} 
+
+
+pcalsr <- prcomp(select(all.traits, -Genus))
+pcalsr$x <- data.frame(pcalsr$x)
+pcalsr$x$Genus <- all.traits$Genus
+ggplot(pcalsr$x, aes(PC1, PC2)) +
+  geom_point(data = transform(pcalsr$x, Genus = NULL), 
+             colour = "grey85", size=3) +
+  geom_smooth(data=transform(pcalsr$x, Genus = NULL), 
+              method="lm", lty="dotted", se=F) +
+  geom_point(aes(color=pcalsr$x$Genus), size=5) + 
+  stat_ellipse() + 
+  #stat_density2d(bins=10) +
+  scale_color_manual(values=brewer.pal(8,"Spectral")) +
+  theme_bw() + theme(legend.position="none") +
+  facet_wrap(vars(Genus))
+
+
+anc.traits.df <- NULL
+for (k in 1:length(anc.all.traits)){anc.traits.df <- cbind(anc.traits.df, anc.all.traits[[k]])}
+colnames(anc.traits.df) <- names(anc.all.traits)
+innovate.elaborate(trait.df = anc.traits.df[57:111,], plot=T, summary=T)
+
+
+body.tilcyc <- all.traits %>%
+  select("Genus", "Body_Width", "Interlimb", "Pelvic_Height", "Pelvic_Width") %>%
+  filter(Genus %in% c("Cyclodomorphus","Tiliqua")) %>%
+  select(-Genus)
+innovate.elaborate(trait.df = body.tilcyc, plot=T, summary=T)
+body.egernia <- all.traits %>%
+  select("Genus", "Body_Width", "Interlimb", "Pelvic_Height", "Pelvic_Width") %>%
+  filter(Genus %in% c("Egernia")) %>%
+  select(-Genus)
+innovate.elaborate(trait.df = body.egernia, plot=T, summary=T)
+body.lislio <- all.traits %>%
+  select("Genus", "Body_Width", "Interlimb", "Pelvic_Height", "Pelvic_Width") %>%
+  filter(Genus %in% c("Lissolepis","Liopholis")) %>%
+  select(-Genus)
+innovate.elaborate(trait.df = body.lislio, plot=T, summary=T)
+  
+  all.traits[c("Body_Width","Interlimb","Pelvic_Height","Pelvic_Width")]
+
+
+
+test.pca <- data.frame(pca$rotation)
+colnames(test.pca) <- sapply(1:19, function(x) paste0(colnames(test.pca)[[x]],"_",round(summary(pca)$importance[2,x]*100,2)))
+test.pca$trait <- rownames(test.pca)
+#test.pca["variance",] <- c(summary(pca)$importance[2,], "variance")
+
+  
+test.pca <- reshape2::melt(test.pca, id.vars="trait", variable.name="PC")
+
+ggplot(test.pca,aes(x=trait,y=value)) +
+  geom_col() + theme_bw() +
+  facet_wrap(~PC) + coord_flip() + scale_x_discrete(limits=rev)
+
+
+plot.rotations(head.ie.phy$pca)
+plot.rotations(body.ie.phy$pca)
+plot.rotations(limb.ie.phy$pca)  
+
+# plot the internal node and tip data separately
+xdata <- data.frame(total.ie.phy$pca$x)
+xdata$color <- c(rep("black",56),rep("grey",55))
+ggplot(xdata, aes(PC1,PC2)) +
+  geom_point(color=xdata$color) +
+  theme_classic() + xlim(c(-5.5,7.5)) + ylim(-5.5,7.5) +
+  geom_smooth(method="lm", color="orangered", se=F, lty="dotted") +
+  stat_ellipse(type="norm", color="orangered", lty="dotted", lwd=1)
+tail(xdata)
+
+
+
+
+
+# this function will plot the regression of a linear model based on PC1 and PC2
+# through time from the root of a tree to the tips
+inn.elab.tt <- function(phy, trait.df, pca.in, base.color=c("Blues","Greens","Reds","Oranges","Purples","Spectral","YlOrRd")){
+  require(ape); require(RColorBrewer); require(phytools)
+  #curr.pca <- prcomp(trait.df)
+
+  ages.df <- round(data.frame(nodeHeights(phy)),3)
+  ages.df$start <- round(max(ages.df) - ages.df[,1],3)
+  ages.df$stop  <- round(max(ages.df) - ages.df[,2],3)
+  ages.df$parent <- phy$edge[,1]
+  ages.df$child  <- phy$edge[,2]
+  btimes <- branching.times(phy)
+  btimes.reorder <- ages.df[with(ages.df, order(ages.df$start, ages.df$stop, decreasing=T)),]
+  btimes.vec <- sort(unique(c(ages.df$start, ages.df$stop)), decreasing=T)
+  tree.segments <- data.frame(embed(btimes.vec, 2)[,2:1])
+  colnames(tree.segments) <- c("start", "stop")
+  tree.segments$mid.point <- apply(tree.segments, 1, mean)
+  
+  coeffs <- NULL
+  for (k in 1:nrow(tree.segments)){
+    curr.segments <- dplyr::filter(ages.df, start >= tree.segments$mid[[k]] &
+                                            stop  <= tree.segments$mid[[k]])
+    curr.data <- data.frame(pca.in[curr.segments$child,c("PC1","PC2")])
+    curr.lm <- lm(curr.data$PC2 ~ curr.data$PC1)
+    coeffs <- rbind(coeffs, data.frame(a=curr.lm$coefficients[[1]], b=curr.lm$coefficients[[2]]))
+  }
+  coeffs$color <- colorRampPalette(brewer.pal(9, base.color)[2:9])(nrow(coeffs))
+  plot(1, type="n", xlab="", ylab="", xlim=c(-5, 5), ylim=c(-5, 5))
+  for(j in 1:nrow(coeffs)){
+    abline(a=coeffs[j,"a"], b=coeffs[j,"b"], col=coeffs$color[[j]], lwd=3)
+    profvis::pause(0.1)
+  }
+  
+}
+
+# set a dataframe for all the traits including ancestral nodes
+anc.all.df <- data.frame(anc.all.traits)
+
+# visualize change in major axis (elaboration) through time for the whole tree
+pca.all <- prcomp(anc.all.df)$x
+inn.elab.tt(phy=egernia.tree, trait.df=anc.all.df, pca=pca.all, base.color="Reds")
+
+# visualize change in major axis (elaboration) through time for Egernia
+ege.tree <- extract.clade(egernia.tree, 96)
+ege.descendants <- c(getDescendants(egernia.tree, 96),96)
+ege.descendants <- sapply(ege.descendants, function(x) if(x <= Ntip(egernia.tree)){egernia.tree$tip.label[[x]]} else{x})
+ege.df <- anc.all.df[which(rownames(anc.all.df) %in% ege.descendants),]
+ege.pca <- pca$x[which(rownames(pca$x) %in% ege.descendants),]
+inn.elab.tt(phy=ege.tree, trait.df=ege.df, pca.in=ege.pca, base.color="YlGn")
+# now look at the innovation/elaboration scores
+ege.ie <- innovate.elaborate.phy(trait.df = ege.df, phy=ege.tree, plot=T, summary=T, angles="equal", PCs=c(1,2))
+# and look at the contributions of traits to axes
+plot.rotations(ege.ie$pca, plot=F)
+
+# visualize change in major axis (elaboration) through time for Bellatorias
+bel.tree <- extract.clade(egernia.tree, 94)
+bel.descendants <- c(getDescendants(egernia.tree, 94),94)
+bel.descendants <- sapply(bel.descendants, function(x) if(x <= Ntip(egernia.tree)){egernia.tree$tip.label[[x]]} else{x})
+bel.df <- anc.all.df[which(rownames(anc.all.df) %in% bel.descendants),]
+bel.pca <- pca$x[which(rownames(pca$x) %in% bel.descendants),]
+inn.elab.tt(phy=bel.tree, trait.df=bel.df, pca.in=bel.pca, base.color="YlGn")
+# now look at the innovation/elaboration scores
+bel.ie <- innovate.elaborate.phy(trait.df = bel.df, phy=bel.tree, plot=T, summary=T, angles="equal", PCs=c(1,2))
+# and look at the contributions of traits to axes
+plot.rotations(bel.ie$pca, plot=F)
+
+
+# visualize change in major axis (elaboration) through time for Cyclo1
+cyc1.tree <- extract.clade(egernia.tree, 78)
+cyc1.descendants <- c(getDescendants(egernia.tree, 78),78)
+cyc1.descendants <- sapply(cyc1.descendants, function(x) if(x <= Ntip(egernia.tree)){egernia.tree$tip.label[[x]]} else{x})
+cyc1.df <- anc.all.df[which(rownames(anc.all.df) %in% cyc1.descendants),]
+cyc1.pca <- pca$x[which(rownames(pca$x) %in% cyc1.descendants),]
+inn.elab.tt(phy=cyc1.tree, trait.df=cyc1.df, pca.in=cyc1.pca, base.color="YlGn")
+# now look at the innovation/elaboration scores
+cyc1.ie <- innovate.elaborate.phy(trait.df = cyc1.df, phy=cyc1.tree, plot=T, summary=T, angles="equal", PCs=c(1,2))
+# and look at the contributions of traits to axes
+plot.rotations(cyc1.ie$pca, plot=F)
+
+# visualize change in major axis (elaboration) through time for Cyclo2
+cyc2.tree <- extract.clade(egernia.tree, 84)
+cyc2.descendants <- c(getDescendants(egernia.tree, 84),84)
+cyc2.descendants <- sapply(cyc2.descendants, function(x) if(x <= Ntip(egernia.tree)){egernia.tree$tip.label[[x]]} else{x})
+cyc2.df <- anc.all.df[which(rownames(anc.all.df) %in% cyc2.descendants),]
+cyc2.pca <- pca$x[which(rownames(pca$x) %in% cyc2.descendants),]
+inn.elab.tt(phy=cyc2.tree, trait.df=cyc2.df, pca.in=cyc2.pca, base.color="YlGn")
+# now look at the innovation/elaboration scores
+cyc2.ie <- innovate.elaborate.phy(trait.df = cyc2.df, phy=cyc2.tree, plot=T, summary=T, angles="equal", PCs=c(1,2))
+# and look at the contributions of traits to axes
+plot.rotations(cyc2.ie$pca, plot=F)
+
+# visualize change in major axis (elaboration) through time for Tiliqua
+til.tree <- extract.clade(egernia.tree, 87)
+til.descendants <- c(getDescendants(egernia.tree, 87),87)
+til.descendants <- sapply(til.descendants, function(x) if(x <= Ntip(egernia.tree)){egernia.tree$tip.label[[x]]} else{x})
+til.df <- anc.all.df[which(rownames(anc.all.df) %in% til.descendants),]
+til.pca <- pca$x[which(rownames(pca$x) %in% til.descendants),]
+inn.elab.tt(phy=til.tree, trait.df=til.df, pca.in=til.pca, base.color="YlGn")
+# now look at the innovation/elaboration scores
+til.ie <- innovate.elaborate.phy(trait.df = til.df, phy=til.tree, plot=T, summary=T, angles="equal", PCs=c(1,2))
+# and look at the contributions of traits to axes
+plot.rotations(til.ie$pca, plot=F)
+
+# visualize change in major axis (elaboration) through time for Liopholis
+lio.tree <- extract.clade(egernia.tree, 63)
+lio.descendants <- c(getDescendants(egernia.tree, 63),63)
+lio.descendants <- sapply(lio.descendants, function(x) if(x <= Ntip(egernia.tree)){egernia.tree$tip.label[[x]]} else{x})
+lio.df <- anc.all.df[which(rownames(anc.all.df) %in% lio.descendants),]
+lio.pca <- pca$x[which(rownames(pca$x) %in% lio.descendants),]
+inn.elab.tt(phy=lio.tree, trait.df=lio.df, pca.in=lio.pca, base.color="YlGn")
+# now look at the innovation/elaboration scores
+lio.ie <- innovate.elaborate.phy(trait.df = lio.df, phy=lio.tree, plot=T, summary=T, angles="equal", PCs=c(1,2))
+# and look at the contributions of traits to axes
+plot.rotations(lio.ie$pca, plot=F)
+```
+
+
+
+
+
+
+
 
 
 <!--

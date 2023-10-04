@@ -366,9 +366,9 @@ distance.btwn.nodes <- function(phy, VRphy, trait, tip, sim.num, stat=c("confide
   tip.padded.named <- tip.padded; tip.padded.named[length(tip.padded.named)] <- tip
   
   # estimate correlated multivariate BM on the empirical data
-  mv.bm.fit.cor <- mvBM(VRphy, trait, model="BM1")
+  mv.bm.fit.cor <- mvBM(VRphy, trait, model="BM1", echo=F, diagnostic=F)
   # estimate uncorrelated multivariate BM on the empirical data
-  mv.bm.fit.unc <- mvBM(phy, trait, model="BM1", param=list(constraint="diagonal"))
+  mv.bm.fit.unc <- mvBM(phy, trait, model="BM1", param=list(constraint="diagonal"), echo=F, diagnostic=F)
   # make a model object with theta values from correlated and sigma values from uncorrelated
   mv.bm.fit.hyb <- mv.bm.fit.unc; mv.bm.fit.hyb$theta <- mv.bm.fit.cor$theta
   
