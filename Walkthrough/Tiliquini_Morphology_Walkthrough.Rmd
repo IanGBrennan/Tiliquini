@@ -424,6 +424,194 @@ p1 <- ggplot(head.rates.df) +
 p1
 ```
 
+\pagebreak
+
+---
+
+# Visualizing the Accumulation of Disparity
+
+We want to visualize the accumulation of disparity compared to a Brownian Motion null. We'll do this in both the multivariate and univariate cases, and use that to understand temporal trends in morphospace exploration. 
+
+Start by sourcing a couple bits of code we'll need.
+```{r, warning=F, message=F}
+source("../Scripts/disparity.to.BM.R")
+source("../Scripts/trait.at.time.R")
+```
+
+
+## Disparity of Modules
+
+```{r}
+load("BayesTraits_processed_modules.RData", verbose=T)
+names(all.BT)
+```
+
+
+Extract information about the empirical accumulation of disparity in modules compared to a Brownian Motion null with correlated trait evolution.  
+```{r, eval=F}
+# HEAD
+head.corBM <- disparity.to.BM.module(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$Head, 
+                                     trait.df=all.modules$head, sim.num=100, metric="variance", 
+                                     trait.name="Head", loess.span=0.1, window.size=20, trait.correlation=T)
+# BODY
+body.corBM <- disparity.to.BM.module(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$Body, 
+                                     trait.df=all.modules$body, sim.num=100, metric="variance", 
+                                     trait.name="Body", loess.span=0.1, window.size=20, trait.correlation=T)
+# TAIL
+tail.corBM <- disparity.to.BM.module(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$Tail, 
+                                     trait.df=all.modules$tail, sim.num=100, metric="variance", 
+                                     trait.name="Tail", loess.span=0.1, window.size=20, trait.correlation=T)
+# LIMB
+limb.corBM <- disparity.to.BM.module(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$Limb, 
+                                     trait.df=all.modules$limb, sim.num=100, metric="variance", 
+                                     trait.name="Limb", loess.span=0.1, window.size=20, trait.correlation=T)
+```
+
+To save time, let's just load saved versions of the above objects.
+```{r}
+load("Disparity_processed_modules.RData")
+# each object should have the following 6 fields
+names(head.corBM)
+```
+
+
+Plot the accumulation curves and difference of slopes independently for each module.
+```{r}
+# Plot all the disparity (variance) curves and difference in slopes
+  (head.corBM$disparity | head.corBM$slopes | plot_spacer()) /
+  (limb.corBM$disparity | limb.corBM$slopes | plot_spacer()) /
+  (tail.corBM$disparity | tail.corBM$slopes | plot_spacer()) /
+  (body.corBM$disparity | body.corBM$slopes | plot_spacer())
+```
+
+
+Now combine the separate disparity summaries (empirical, simulated, slopes) into workable dataframes.
+```{r}
+all.disparity <- rbind(cbind(limb.corBM$empirical.metric, trait="limb"),
+                       cbind(head.corBM$empirical.metric, trait="head"),
+                       cbind(body.corBM$empirical.metric, trait="body"),
+                       cbind(tail.corBM$empirical.metric, trait="tail"))
+all.sim.disparity <- rbind(cbind(limb.corBM$simulated.metric, trait="limb"),
+                           cbind(head.corBM$simulated.metric, trait="head"),
+                           cbind(body.corBM$simulated.metric, trait="body"),
+                           cbind(tail.corBM$simulated.metric, trait="tail"))
+all.slope <- rbind(cbind(limb.corBM$slopes.df, trait="limb"),
+                   cbind(head.corBM$slopes.df, trait="head"),
+                   cbind(body.corBM$slopes.df, trait="body"),
+                   cbind(tail.corBM$slopes.df, trait="tail"))
+```
+
+
+Plot the empirical vs. simulated disparity
+```{r}
+disparity.plot <- ggplot() +
+  #geom_ribbon(data=all.sim.disparity, aes(x=rev(time), ymin=`5%`, ymax=`95%`, fill=trait), alpha=0.1) +
+  #scale_fill_brewer(palette="Spectral") +
+  geom_line(data=all.sim.disparity, aes(x=rev(time), y=`50%`, color=trait), alpha=0.75, linetype="dotted") +
+  geom_line(data=all.disparity, aes(x=rev(time), y=measure, color=trait)) +
+  scale_color_brewer(palette="Spectral") + xlab("Time (Ma)") + ylab("Disparity (variance)") +
+  scale_x_reverse() + theme_classic() + theme(legend.position="bottom")
+```
+
+Plot the difference in slopes of empirical vs. simulated disparity
+```{r}
+slope.plot <- ggplot() +
+  geom_abline(slope=0, intercept=0, color="black", linetype="dotted") +
+  geom_ribbon(data=all.slope, aes(x=rev(time),ymin=slope.lower,ymax=slope.upper, fill=trait), alpha=0.1) +
+  scale_fill_brewer(palette="Spectral") +
+  geom_line(data=all.slope, aes(x=rev(time), y=slope.diff, color=trait)) +
+  scale_color_brewer(palette="Spectral") + 
+  xlab("Time (Ma)") + ylab("Difference in Slopes (observed - BM") +
+  scale_x_reverse() + theme_classic() + theme(legend.position="bottom")
+```
+
+Combine the plots
+```{r}
+(disparity.plot + slope.plot + plot_spacer()) + plot_layout(guides="collect") & theme(legend.position="bottom")
+```
+
+What this shows:  
+On the left we see the accumulation of disparity as variance of empirical trends in the modules (solid lines) compared to a correlated Brownian Motion null model. On the right we visualize the difference in slopes (through time) between the empirical and simulated trends. Values above 0 indicate periods of morphospace expansion---disparity is accumulating greater in the empirical system than in simulations under BM---and values below 0 indicate periods of morphospace conservatism/packing---disparity is accumulating slower in the empirical system than in simulations under BM. 
+
+## Disparity of Individual Traits
+
+We should be able to do this similarly for individual traits.
+```{r}
+load("BayesTraits_processed_traits.RData", verbose=T)
+names(all.BT)
+```
+
+We'll run the same type of analyses on traits within a module. Because we don't have a saved object like for the modules let's run a small number of simulations (10), but if you were doing this for real you'd want to increase `sim.num` > 100.
+```{r}
+# put our traits into individual named vectors
+traits.vec <- lapply(1:20, function(x) setNames(smallLSR[,x], rownames(smallLSR)))
+names(traits.vec) <- colnames(smallLSR)[1:length(traits.vec)]
+
+# process each trait
+# HEAD traits 
+hd.var <- disparity.to.BM(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$HeadDepth,
+                          trait=traits.vec$Head_Depth, sim.num=10, metric="variance", 
+                          trait.name="Head Depth", loess.span=0.1, window.size=20)
+hw.var <- disparity.to.BM(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$HeadWidth,
+                          trait=traits.vec$Head_Width, sim.num=10, metric="variance", 
+                          trait.name="Head Width", loess.span=0.1, window.size=20)
+ps.var <- disparity.to.BM(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$PosSkull,
+                          trait=traits.vec$Pos_Skull, sim.num=10, metric="variance", 
+                          trait.name="Pos Skull", loess.span=0.1, window.size=20)
+se.var <- disparity.to.BM(phy=egernia.tree, scaled.phy=all.BT$scalar.trees$SnoutEye,
+                          trait=traits.vec$Snout_Eye, sim.num=10, metric="variance", 
+                          trait.name="Snout Eye", loess.span=0.1, window.size=20)
+```
+
+Now combine the separate disparity summaries (empirical, simulated, slopes) into workable dataframes.
+```{r}
+all.disparity <- rbind(cbind(hd.var$empirical.metric, trait="head depth"),
+                       cbind(hw.var$empirical.metric, trait="head width"),
+                       cbind(ps.var$empirical.metric, trait="posterior skull"),
+                       cbind(se.var$empirical.metric, trait="snout eye"))
+all.sim.disparity <- rbind(cbind(hd.var$simulated.metric, trait="head depth"),
+                           cbind(hw.var$simulated.metric, trait="head width"),
+                           cbind(ps.var$simulated.metric, trait="posterior skull"),
+                           cbind(se.var$simulated.metric, trait="snout eye"))
+all.slope <- rbind(cbind(hd.var$slopes.df, trait="head depth"),
+                   cbind(hw.var$slopes.df, trait="head width"),
+                   cbind(ps.var$slopes.df, trait="posterior skull"),
+                   cbind(se.var$slopes.df, trait="snout eye"))
+```
+
+
+Plot the empirical vs. simulated disparity
+```{r}
+disparity.plot <- ggplot() +
+  #geom_ribbon(data=all.sim.disparity, aes(x=rev(time), ymin=`5%`, ymax=`95%`, fill=trait), alpha=0.1) +
+  #scale_fill_brewer(palette="Spectral") +
+  geom_line(data=all.sim.disparity, aes(x=rev(time), y=`50%`, color=trait), alpha=0.75, linetype="dotted") +
+  geom_line(data=all.disparity, aes(x=rev(time), y=measure, color=trait)) +
+  scale_color_brewer(palette="Spectral") + xlab("Time (Ma)") + ylab("Disparity (variance)") +
+  scale_x_reverse() + theme_classic() + theme(legend.position="bottom")
+```
+
+Plot the difference in slopes of empirical vs. simulated disparity
+```{r}
+slope.plot <- ggplot() +
+  geom_abline(slope=0, intercept=0, color="black", linetype="dotted") +
+  geom_ribbon(data=all.slope, aes(x=rev(time),ymin=slope.lower,ymax=slope.upper, fill=trait), alpha=0.1) +
+  scale_fill_brewer(palette="Spectral") +
+  geom_line(data=all.slope, aes(x=rev(time), y=slope.diff, color=trait)) +
+  scale_color_brewer(palette="Spectral") + 
+  xlab("Time (Ma)") + ylab("Difference in Slopes (observed - BM") +
+  scale_x_reverse() + theme_classic() + theme(legend.position="bottom")
+```
+
+Combine the plots
+```{r}
+(disparity.plot + slope.plot + plot_spacer()) + plot_layout(guides="collect") & theme(legend.position="bottom")
+```
+
+
+
+\pagebreak
+
 
 ---
 
