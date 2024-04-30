@@ -1,5 +1,7 @@
 setwd("/Data/BayesTraits/")
 
+source("Scripts/plotting_BayesTraits.R")
+
 
 ############################################################################
 

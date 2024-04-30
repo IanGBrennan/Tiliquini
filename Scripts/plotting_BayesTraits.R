@@ -264,10 +264,13 @@ process_FPP <- function(res.files, phy, col.palette, rate.metric=c("Mean.SigV","
 
 
 # plot a phylogeny with branches colored by rate
+# coloring options are a bit tricky, so stick to 'log.rates=F relative.rates=T'
 plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
                                  tree.type = c("phylogram", "fan"),
-                                 log.rates = F, trait=NULL, outline=F,
-                                 pos.selection = F, shift.rates = F){
+                                 log.rates = F, relative.rates = F,
+                                 trait=NULL, outline=F,
+                                 pos.selection = F, shift.rates = F,
+                                 annotations=F){
   
   #ntraits <- length(RR)
   #opt.layout <- n2mfrow(ntraits)
@@ -290,7 +293,10 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
   all.edges <- data.frame(edge.rate = BT$Mean.SigV,
                           edge = BT$edge,
                           child.node = BT$child.node)
-  if(log.rates==T){all.edges$raw.rate <- all.edges$edge.rate; all.edges$edge.rate <- log(all.edges$edge.rate)}
+  if(log.rates==T && relative.rates==F){all.edges$raw.rate <- all.edges$edge.rate; all.edges$edge.rate <- log(all.edges$edge.rate)}
+  #if(log.rates==T && relative.rates==T){all.edges$edge.rate <- mean(all.edges$edge.rate) / all.edges$edge.rate}
+  if(log.rates==T && relative.rates==T){all.edges$raw.rate <- all.edges$edge.rate / mean(all.edges$edge.rate); all.edges$edge.rate <- log(all.edges$edge.rate)}
+  if(log.rates==F && relative.rates==T){all.edges$edge.rate <- all.edges$edge.rate / mean(all.edges$edge.rate)}
   #all.edges <- all.edges[-which(all.edges$child.node==Ntip(phy)+1),]
   
   # scale the rates by the fastest rate (for ease of plotting)
@@ -301,7 +307,14 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
   
   # make a color ramp that suits the data
   if(col.palette %in% c("magma", "inferno", "plasma", "viridis","cividis", "rocket", "mako")){
-    new.cols <- viridis(n=100, option=col.palette)
+    new.cols <- rev(viridis(n=100, option=col.palette))
+    #if(col.palette %in% c("mako", "plasma", "inferno")){new.cols <- rev(new.cols)}
+  }else if(col.palette == "GyYlRd"){
+    colfunc <- colorRampPalette(c("#c7c7c7", "#ffee2e", "#e81d13"))
+    new.cols <- colfunc(100)
+  }else if(col.palette == "GnBu"){
+    colfunc <- colorRampPalette(c("#C7E9B4","#7FCDBB","#41B6C4","#2C7FB8","#253494","#081D58"))
+    new.cols <- colfunc(100)
   }else{
     col.ramp <- colorRampPalette(brewer.pal(9, col.palette)[2:9])
     new.cols <- (col.ramp(100))
@@ -314,7 +327,7 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
   
   # plot the phylogeny with colored branches
   if(outline==T){plot.phylo(phy, edge.width=5, type=tree.type, cex=0.3); par(new=T)}
-  plot.phylo(phy, edge.color = unlist(all.edges$edge.color), edge.width=3, type=tree.type, cex=0.3, open.angle=265)
+  plot.phylo(phy, edge.color = unlist(all.edges$edge.color), edge.width=3, type=tree.type, cex=0.3, open.angle=5)
   axisPhylo()
   title(trait)
 
@@ -326,7 +339,7 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
         edgelabels(text="", edge=noquote(sr$edge[j]), frame="circle", bg="white", cex=0.4, col=0.5)
       }      
     }
-    title(xlab = paste(nrow(sr), "instances of rate shifts"))
+    if(annotations==T){title(xlab = paste(nrow(sr), "instances of rate shifts"))}
   }
   
   # plot the location of edges undergoing shifts in evolutionary rate
@@ -337,7 +350,7 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
         edgelabels(text="", edge=noquote(sr$edge[j]), frame="circle", bg="grey", cex=0.3, col=0.5)
       }      
     }
-    title(xlab = paste(nrow(sr), "instances of rate shifts"))
+    #if(annotations==T){title(xlab = paste(nrow(sr), "instances of rate shifts"))}
   }
 
   # plot the location of edges undergoing positive selection sensu Baker et al. 2016
@@ -350,18 +363,22 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
         edgelabels(text="", edge=noquote(g2$edge[j]), frame="circle", bg="black", cex=0.2, col=0.5)
       }   
     }
-    title(sub = paste(nrow(g2), "instances of positive selection"))
+    if(annotations==T){title(sub = paste(nrow(g2), "instances of positive selection"))}
   }
   
   # if we chose to plot a legend, do that now
-  if(legend==T & log.rates==F){plot(0,type='n',axes=FALSE,ann=FALSE);
-                color.bar(new.cols, 
-                          min=round(min(all.edges$edge.rate),2),
-                          max=round(max(all.edges$edge.rate),2))}
-  if(legend==T & log.rates==T){plot(0,type='n',axes=FALSE,ann=FALSE);
+  if(legend==T && log.rates==F && relative.rates==T){plot(0,type='n',axes=FALSE,ann=FALSE);
     color.bar(new.cols, 
-              min=round(min(all.edges$raw.rate),2),
-              max=round(max(all.edges$raw.rate),2))}
+              min=round(min(all.edges$edge.rate),2),
+              max=round(max(all.edges$edge.rate),2))}
+  if(legend==T && log.rates==T && relative.rates==F){plot(0,type='n',axes=FALSE,ann=FALSE);
+    color.bar(new.cols, 
+              min=round(min(all.edges$raw.rate),5),
+              max=round(max(all.edges$raw.rate),5))}
+  if(legend==T && log.rates==T && relative.rates==T){plot(0,type='n',axes=FALSE,ann=FALSE);
+    color.bar(new.cols, 
+              min=round(min(log(all.edges$raw.rate)),2),
+              max=round(max(log(all.edges$raw.rate)),2))}
 }
 
 
