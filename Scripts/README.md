@@ -12,6 +12,8 @@ Scripts used to analyze morphological data and generate figures for this manuscr
 
 + *plotting_BayesTraits.R*: functions for processing BayesTraits output files and visualizing rate heterogeneity along on the focal tree (left column trees) of Figure 4. 
 
++ *process_BTVarRates.R*: function for processing BayesTraits log file to assess convergence of estimated parameters.
+
 + *rate.trajectory.R*: functions used in the *PLOT_rate.trajectory.R* script, as well as for generating the rate-to-node plots of Figure 4 (center column).
 
 + *RUN_BayesTraits_VarRates_Likelihoods.R*: calculate AIC values for the VR model and compare against other comparative models. 
@@ -23,6 +25,8 @@ Scripts used to analyze morphological data and generate figures for this manuscr
 + *shifts.to.simmap.l1ou.R*: functions for visualizing l1ou results.
 
 + *trait.at.time.R*: many functions for extracting trait, rate, and disparity metrics through time for traits and modules
+
++ *visualizeBayesTraitsLog.R*: used in conjunction with `process_BTVarRates.R` to visually assess convergence of parameter estimates
 
 
 ___

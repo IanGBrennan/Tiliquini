@@ -1,0 +1,11 @@
+7
+2
+VarRates
+Prior Sigma-1 uniform 0 0.02
+Prior Sigma-2 uniform 0 0.02
+Prior Sigma-3 uniform 0 0.02
+Prior Sigma-4 uniform 0 0.02
+Burnin 100000000
+Sample 20000
+Iterations 200000000
+Run

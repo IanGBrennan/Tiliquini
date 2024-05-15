@@ -1,10 +1,15 @@
 library(ggplot2)
 
+
+##############################################################################
+
 # source necessary script
 source("Scripts/trait.at.time.R")
 
 # load the ancestral trait data
 load("Data/Tiliquini_Ancestral_TRAITS.Rdata")
+
+##############################################################################
 
 
 # extract trait disparity at each point in time

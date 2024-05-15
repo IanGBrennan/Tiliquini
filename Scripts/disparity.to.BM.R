@@ -124,7 +124,7 @@ disparity.to.BM.module <- function(phy, scaled.phy, trait.df, sim.num,
   colnames(sim.qts) <- c("time","5%","50%","95%")
   
   # combined empirical trait with estimated ancestral nodes from the scaled tree
-  emp.fit <- mvBM(tree=egernia.tree, data=trait.df, model="BM1", param=list(constraint=FALSE), echo=F, diagnostic=F)
+  emp.fit <- mvBM(tree=phy, data=trait.df, model="BM1", param=list(constraint=FALSE), echo=F, diagnostic=F)
   emp.trait <- rbind(trait.df, estim(tree=scaled.phy, data=trait.df, object=sim.fit, asr=T)$estimates)
   # extract trait at time object for the empirical data
   emp.tat <- trait.at.time.multi(timeslices=0.1, phy=phy, trait=emp.trait, plot=F)

@@ -26,7 +26,7 @@ LIMB.rtn <- rate.to.node.BT(phy=til.tree, PPP.obj=module.BT$all.res$Limb, psize=
                             log.rates=F, col.palette="YlGnBu", relative.rates=T)
 
 BODY.rtn <- rate.to.node.BT(phy=til.tree, PPP.obj=module.BT$all.res$Body, psize=3, lsize=2, 
-                            log.rates=F, col.palette="YlGnBu", relative.rates=T)
+                            log.rates=F, col.palette="Yl", relative.rates=T)
 
 
 ############################################################################
@@ -37,10 +37,10 @@ BODY.rtn <- rate.to.node.BT(phy=til.tree, PPP.obj=module.BT$all.res$Body, psize=
 
 
 # Plot it for adding to multi figure panel
-(plot_spacer() +   plot_spacer() + HEAD.rtn)/
-  (plot_spacer() + plot_spacer() + LIMB.rtn) /
-  (plot_spacer() + plot_spacer() + TAIL.rtn) /
-  (plot_spacer() + plot_spacer() + BODY.rtn)
+(plot_spacer()   + HEAD.rtn + plot_spacer())/
+  (plot_spacer() + LIMB.rtn + plot_spacer()) /
+  (plot_spacer() + TAIL.rtn + plot_spacer()) /
+  (plot_spacer() + BODY.rtn + plot_spacer())
 
 
 

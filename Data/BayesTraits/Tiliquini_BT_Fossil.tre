@@ -1,0 +1,143 @@
+#NEXUS
+[R-package PHYTOOLS, Thu Apr 18 08:43:33 2024]
+
+BEGIN TAXA;
+	DIMENSIONS NTAX = 65;
+	TAXLABELS
+		Bellatorias_frerei
+		Bellatorias_major
+		Bellatorias_obiri
+		Corucia_zebrata
+		Cyclodomorphus_branchialis
+		Cyclodomorphus_casuarinae
+		Cyclodomorphus_celatus
+		Cyclodomorphus_gerrardii
+		Cyclodomorphus_m.elongatus
+		Cyclodomorphus_m.melanops
+		Cyclodomorphus_m.siticulosus
+		Cyclodomorphus_maximus
+		Cyclodomorphus_michaeli
+		Cyclodomorphus_praealtus
+		Cyclodomorphus_venustus
+		Egernia_cunninghami
+		Egernia_cygnitos
+		Egernia_depressa
+		Egernia_douglasi
+		Egernia_eos
+		Egernia_epsisolus
+		Egernia_formosa
+		Egernia_gillespieae
+		Egernia_hosmeri
+		Egernia_kingii
+		Egernia_mcpheei
+		Egernia_napoleonis
+		Egernia_pilbarensis
+		Egernia_richardi
+		Egernia_rugosa
+		Egernia_s.stokesii
+		Egernia_s.zellingi
+		Egernia_saxatilis
+		Egernia_striolata
+		Liopholis_guthega
+		Liopholis_inornata
+		Liopholis_kintorei
+		Liopholis_margaretae
+		Liopholis_modesta
+		Liopholis_montana
+		Liopholis_multiscutata
+		Liopholis_personata
+		Liopholis_pulchra
+		Liopholis_slateri
+		Liopholis_sp.nov
+		Liopholis_sp.nov2
+		Liopholis_striata
+		Liopholis_whitii
+		Lissolepis_coventryi
+		Lissolepis_luctuosa
+		Proegernia_mikebulli
+		Proegernia_palankarinnensis
+		Tiliqua_adelaidensis
+		Tiliqua_frangens
+		Tiliqua_gigas
+		Tiliqua_multifasciata
+		Tiliqua_nigrolutea
+		Tiliqua_occipitalis
+		Tiliqua_pusilla
+		Tiliqua_rugosa
+		Tiliqua_scincoides
+		Tribolonotus_blanchardi
+		Tribolonotus_gracilis
+		Tribolonotus_ponceleti
+		Tribolonotus_pseudoponceleti
+	;
+END;
+BEGIN TREES;
+	TRANSLATE
+		1	Bellatorias_frerei,
+		2	Bellatorias_major,
+		3	Bellatorias_obiri,
+		4	Corucia_zebrata,
+		5	Cyclodomorphus_branchialis,
+		6	Cyclodomorphus_casuarinae,
+		7	Cyclodomorphus_celatus,
+		8	Cyclodomorphus_gerrardii,
+		9	Cyclodomorphus_m.elongatus,
+		10	Cyclodomorphus_m.melanops,
+		11	Cyclodomorphus_m.siticulosus,
+		12	Cyclodomorphus_maximus,
+		13	Cyclodomorphus_michaeli,
+		14	Cyclodomorphus_praealtus,
+		15	Cyclodomorphus_venustus,
+		16	Egernia_cunninghami,
+		17	Egernia_cygnitos,
+		18	Egernia_depressa,
+		19	Egernia_douglasi,
+		20	Egernia_eos,
+		21	Egernia_epsisolus,
+		22	Egernia_formosa,
+		23	Egernia_gillespieae,
+		24	Egernia_hosmeri,
+		25	Egernia_kingii,
+		26	Egernia_mcpheei,
+		27	Egernia_napoleonis,
+		28	Egernia_pilbarensis,
+		29	Egernia_richardi,
+		30	Egernia_rugosa,
+		31	Egernia_s.stokesii,
+		32	Egernia_s.zellingi,
+		33	Egernia_saxatilis,
+		34	Egernia_striolata,
+		35	Liopholis_guthega,
+		36	Liopholis_inornata,
+		37	Liopholis_kintorei,
+		38	Liopholis_margaretae,
+		39	Liopholis_modesta,
+		40	Liopholis_montana,
+		41	Liopholis_multiscutata,
+		42	Liopholis_personata,
+		43	Liopholis_pulchra,
+		44	Liopholis_slateri,
+		45	Liopholis_sp.nov,
+		46	Liopholis_sp.nov2,
+		47	Liopholis_striata,
+		48	Liopholis_whitii,
+		49	Lissolepis_coventryi,
+		50	Lissolepis_luctuosa,
+		51	Proegernia_mikebulli,
+		52	Proegernia_palankarinnensis,
+		53	Tiliqua_adelaidensis,
+		54	Tiliqua_frangens,
+		55	Tiliqua_gigas,
+		56	Tiliqua_multifasciata,
+		57	Tiliqua_nigrolutea,
+		58	Tiliqua_occipitalis,
+		59	Tiliqua_pusilla,
+		60	Tiliqua_rugosa,
+		61	Tiliqua_scincoides,
+		62	Tribolonotus_blanchardi,
+		63	Tribolonotus_gracilis,
+		64	Tribolonotus_ponceleti,
+		65	Tribolonotus_pseudoponceleti
+	;
+	TREE * UNTITLED = [&R] ((((((((((((((18:1.9811,20:1.9811):2.40265,(17:2.9804,21:2.9804):1.40335):8.648075,(28:8.202,22:8.202):4.829825):1.582891667,((27:10.2773,29:10.2773):2.0374,25:12.3147):2.300016667):0.8493944444,19:15.46411111):0.4410711111,((((31:6.92885,32:6.92885):2.803183333,24:9.732033333):4.339091667,30:14.071125):1.30832,((33:6.4877,16:6.4877):4.76295,(26:10.066,34:10.066):1.18465):4.128795):0.5257372222):1.468993216,((2:10.9368,1:10.9368):1.90295,3:12.83975):4.534425439):2.1,23:4.744175443):0.947773804,(((((((58:3.6603,56:3.6603):3.5447,(60:6.5,54:4.2):0.705):1.5366,((55:3.3154,61:3.3154):3.5791,57:6.8945):1.8471):5.2005,53:13.9421):1.5,59:0.2821000046):0.2051375,(((6:2.1612,14:2.1612):0.7199,13:2.8811):6.91615,8:9.79725):5.8499875):0.5965761364,((((((11:1.6754,9:1.6754):2.3196,10:3.995):2.6554,15:6.6504):0.5514,7:7.2018):7.6951,12:14.8969):1.2381,5:16.135):0.1088136364):4.178135606):3.898443674,(((((((((45:3.5982,44:3.5982):1.0837,36:4.6819):0.98805,46:5.66995):2.0898125,(47:4.3062,37:4.3062):3.4535625):1.8525625,41:9.612325):5.119296429,(39:10.831,38:10.831):3.900621429):0.5815077381,(((40:9.0165,35:9.0165):2.1347,48:11.1512):2.14265,42:13.29385):2.019279167):0.9743862179,43:16.28751538):5.781948901,49:22.06946429):2.250928631):1.255717083,50:25.57611):5,51:4.976110004):5.97689982,(4:28,52:2.4):8.55300982):37.40599983,(((65:7,64:7):13,62:20):8.1466,63:28.1466):45.81240965);
+END;

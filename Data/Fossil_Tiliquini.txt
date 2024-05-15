@@ -1,0 +1,28 @@
+Egernia gillespieae (Thorn et al. 2019)
+	+ 14.82 myo
+	+ mandible - 26.5 mm
+	+ humerus (Upper_Arm) - 16 mm
+	+ ulna (Lower_Arm) - 10 mm
+	+ SVL - ?
+
+Tiliqua pusilla
+	+ SVL - ?
+
+Proegernia mikebulli
+	+ 25.5-25.7 myo
+	+ SVL - ~100 mm
+	+ dentary - 12.7 mm ()
+	+ mandible ~ 17.7 mm
+
+
+Proegernia palankarinnensis
+	+ SVL - ?
+	
+Tiliqua frangens
+	+ SVL - 594 mm (471.5-748.8)
+	+ dentary - 22.5 mm (AM_F145608)
+	+ dentary - 44.2 mm (AM_F143322)
+	+ mandible - 72 mm (AM_F143322/1 reconstructed)
+
+Thorn et al. (2021): "However, a large amount of missing data for these fossil taxa and low support for precise relationships means that it is possible that these trees are wrong, and that homoplasy with Corucia is what pulls these taxa away from the crown Australian group. It is then possible that Proegernia lies on the immediate stem to the Australian crown group, in which case only a single dispersal event to Australia need be assumed." p.23
+

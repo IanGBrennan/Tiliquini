@@ -306,9 +306,9 @@ rate.trajectory.BT<- function(tree, module, PPP.all.res, tip.spread,
 # with edges/branches colored according to estimated evolutionary rates.
 # You can also use it to export a data frame for use with rate.to.node()
 rate.trajectory.BT.module<- function(tree, module, PPP.all.res, tip.spread,
-                              focus=c("tip","clade"),
+                              focus=c("tip","clade"), col.palette,
                               psize=3, lsize=2, background.color=c("grey","brew.pal"),
-                              gimme.the.data=F, inset=F){
+                              gimme.the.data=F, inset=F, relative.rates=F){
   
   # set the tree
   phy <- tree
@@ -321,6 +321,8 @@ rate.trajectory.BT.module<- function(tree, module, PPP.all.res, tip.spread,
   
   # use the processRRrates function to get a dataframe with all the necessary info
   rates.df <- PPP.all.res
+  #if(relative.rates==T){rates.df$Mean.SigV <- rates.df$Mean.SigV/mean(rates.df$Mean.SigV)}
+  #if(relative.rates==T){rates.df$Mean.SigV <- rates.df$Mean.Scalar} # relative rates are just the scalars!
   
   # combine all traits (contemporary and ancestors)
   all.trait <- module
@@ -334,7 +336,25 @@ rate.trajectory.BT.module<- function(tree, module, PPP.all.res, tip.spread,
   }
   rates.df$traitstart <- tstart
   rates.df$traitstop <- tstop
-  #rates.df$module <- colnames(RR$rates)
+
+  # make a color ramp that suits the data
+  if(col.palette %in% c("magma", "inferno", "plasma", "viridis","cividis", "rocket", "mako")){
+    new.cols <- rev(viridis(n=100, option=col.palette))
+    #if(col.palette %in% c("mako", "plasma", "inferno")){new.cols <- rev(new.cols)}
+  }else if(col.palette == "GyYlRd"){
+    colfunc <- colorRampPalette(c("#c7c7c7", "#ffee2e", "#e81d13"))
+    new.cols <- colfunc(100)
+  }else if(col.palette == "GnBu"){
+    colfunc <- colorRampPalette(c("#C7E9B4","#7FCDBB","#41B6C4","#2C7FB8","#253494","#081D58"))
+    new.cols <- colfunc(100)
+  }else{
+    col.ramp <- colorRampPalette(brewer.pal(9, col.palette)[2:9])
+    new.cols <- (col.ramp(100))
+    if(col.palette %in% c("Spectral","RdYlGn","RdYlBu","RdGy","RdBu","PuOr","PRGn","PiYG","BrBG")){new.cols <- rev(new.cols)}
+  }
+
+  #all.edges$edge.color <- sapply(all.edges$rounded.rates, function(x) new.cols[x]) # this is definitely wrong
+  rates.df$edge.color <- new.cols[rates.df$rounded.rates]
   
   # if you're working with a clade
   if(focus == "clade"){
@@ -366,20 +386,21 @@ rate.trajectory.BT.module<- function(tree, module, PPP.all.res, tip.spread,
   
   # make a color ramp that suits the data based on the input colors from rates.df
   palette.direction = 1
-  if(rates.df$palette[[1]] %in% c("magma", "inferno", "plasma", "viridis","cividis", "rocket", "mako")){
-    colors <- viridis(n=100, option=rates.df$palette[[1]])
+  if(col.palette %in% c("magma", "inferno", "plasma", "viridis","cividis", "rocket", "mako")){
+    colors <- viridis(n=100, option=col.palette)
   }else{
-    col.ramp <- colorRampPalette(brewer.pal(9, rates.df$palette[[1]]))
+    col.ramp <- colorRampPalette(brewer.pal(9, col.palette))
     colors <- (col.ramp(100))
-    if(rates.df$palette[[1]]%in% c("Spectral","RdYlGn","RdYlBu","RdGy","RdBu","PuOr","PRGn","PiYG","BrBG")){colors <- rev(colors); palette.direction=-1}
+    if(col.palette %in% c("Spectral","RdYlGn","RdYlBu","RdGy","RdBu","PuOr","PRGn","PiYG","BrBG","Reds","Blues","Greens")){colors <- rev(colors); palette.direction=1}
   }
   color.df <- data.frame(color = colors)
-  color.df$scale <- seq(min(rates.df$Mean.SigV), max(rates.df$Mean.SigV), length.out=100)
+  if(relative.rates==F){color.df$scale <- seq(min(rates.df$Mean.SigV), max(rates.df$Mean.SigV), length.out=100)}
+  if(relative.rates==T){color.df$scale <- seq(min(rates.df$Mean.Scalar), max(rates.df$Mean.Scalar), length.out=100)}
   
   # plot the scale bar
   scale <- ggplot() + geom_tile(data=color.df, aes(x=1, y=scale, fill=scale)) +
-    {if(rates.df$palette[[1]]%in%rownames(brewer.pal.info))scale_fill_distiller(palette = rates.df$palette[[1]], direction=palette.direction)} +
-    {if(rates.df$palette[[1]]%in%c("magma", "inferno", "plasma", "viridis","cividis", "rocket", "mako"))scale_fill_viridis_c(option=rates.df$palette[[1]], direction=palette.direction)} +
+    {if(col.palette%in%rownames(brewer.pal.info))scale_fill_distiller(palette = col.palette, direction=palette.direction)} +
+    {if(col.palette%in%c("magma", "inferno", "plasma", "viridis","cividis", "rocket", "mako"))scale_fill_viridis_c(option=col.palette, direction=-palette.direction)} +
     theme_classic() +  ylab("Evolutionary Rate") +
     theme(legend.position="none", 
           axis.ticks = element_blank(),
@@ -433,18 +454,33 @@ shifted.edges.l1ou <- function(phy, l1ou.object, rate.traj.obj){
 # plot the evolutionary rate along branches leading to a rate shift
 # as inferred by BayesTraits
 rate.to.node.BT <- function(phy, PPP.obj, psize=3, lsize=2,
-                            log.rates=F, col.palette="YlOrRd"){
+                            log.rates=F, col.palette="YlOrRd",
+                            relative.rates=F){
+  # warning
+  if(log.rates==T && relative.rates==T){stop("reconsider if you really want to show relative log rates")}
   # if we want to log the rates
-  if(log.rates==T){
+  if(log.rates==T && relative.rates==F){
     PPP.obj$Mean.SigV <- log(PPP.obj$Mean.SigV)
     PPP.obj$ratestart <- log(PPP.obj$ratestart)
     PPP.obj$ratestop  <- log(PPP.obj$ratestop)
     PPP.obj$edge.rate <- log(PPP.obj$edge.rate)
   }
+  # if we want relative rates
+  if(log.rates==F && relative.rates==T){
+  #  PPP.obj$Mean.SigV <- PPP.obj$Mean.SigV / mean(PPP.obj$edge.rate)
+  #  PPP.obj$ratestart <- PPP.obj$ratestart / mean(PPP.obj$edge.rate)
+  #  PPP.obj$ratestop  <- PPP.obj$ratestop / mean(PPP.obj$edge.rate)
+  #  PPP.obj$edge.rate <- PPP.obj$edge.rate /  mean(PPP.obj$edge.rate)
+
+    PPP.obj$Mean.SigV <- PPP.obj$Mean.Scalar
+    PPP.obj$ratestart <- PPP.obj$scalarstart
+    PPP.obj$ratestop  <- PPP.obj$scalarstop
+    PPP.obj$edge.rate <- PPP.obj$edge.scalar
+  }
 
   # scale the rates by the fastest rate (for ease of plotting)
-  PPP.obj$rounded.rates <- round((PPP.obj$edge.rate - min(PPP.obj$edge.rate))/diff(range(PPP.obj$edge.rate)) * 99) + 1
-  
+  #PPP.obj$rounded.rates <- round((PPP.obj$edge.rate - min(PPP.obj$edge.rate))/diff(range(PPP.obj$edge.rate)) * 99) + 1
+
   # sort it by the original order!
   PPP.obj <- PPP.obj[order(match(PPP.obj$child.node, phy$edge[,2])),]  
   
@@ -488,25 +524,28 @@ rate.to.node.BT <- function(phy, PPP.obj, psize=3, lsize=2,
   # extract the rates through time
   RaT <- extract.stat(RaT, stat="mean", range="quantile", plot=F)
   
+
   ggplot()+
-    #{if(log.rates==T)geom_ribbon(data=RaT, aes(x=time-max(time), ymin=log(`5%`), ymax=log(`95%`)), fill="grey", alpha=0.5)} +
-    #{if(log.rates==F)geom_ribbon(data=RaT, aes(x=time-max(time), ymin=`5%`, ymax=`95%`), fill="grey", alpha=0.5)} +
-    #{if(log.rates==T)geom_line(data=RaT, aes(x=time-max(time), y=log(rate)), color="darkGrey", lwd=lsize-1)} +
-    #{if(log.rates==F)geom_line(data=RaT, aes(x=time-max(time), y=rate), color="darkGrey", lwd=lsize-1)} +
-    geom_ribbon(data=RaT, aes(x=time-max(time), ymin=`5%`, ymax=`95%`), fill="grey", alpha=0.5) +
-    geom_line(data=RaT, aes(x=time-max(time), y=rate), color="darkGrey", lwd=lsize) +
-    # the two commented lines will plot the trajectory of every branch
-    #geom_segment(data=rate.traj.obj, aes(x=timestart, xend=timestart, y=ratestart, yend=ratestop), lwd=lsize, color="lightBlue", alpha=0.5, lineend="round") +
-    #geom_segment(data=rate.traj.obj, aes(x=timestart, xend=timestop,  y=edge.rate, yend=edge.rate),lwd=lsize, color="lightBlue", alpha=0.5, lineend="round") +
-    geom_segment(data=edge.shifts.unique, aes(x=timestart, xend=timestart, y=ratestart, yend=ratestop),  lwd=lsize, color=edge.shifts.unique$edge.color, lineend="round") +
-    geom_segment(data=edge.shifts.unique, aes(x=timestart, xend=timestop,  y=edge.rate, yend=edge.rate), lwd=lsize, color=edge.shifts.unique$edge.color, lineend="round") +
-    geom_point(data=edge.shifts.unique,   aes(x=timestart, y=ratestart), size=psize, shape=21, fill="white", color="#706f6f") +
-    geom_point(data=edge.shifts.unique,   aes(x=timestop,  y=ratestop),  size=psize, shape=21, fill="white", color="#706f6f") +
-    geom_point(data=shifts,        aes(x=timestop,  y=ratestop),  size=psize-1, shape=20, fill="black") +
-    {if(log.rates==T)ylab("log Evolutionary Rate")} +
-    {if(log.rates==F)ylab("Evolutionary Rate")} +
-    xlab("Million Years Ago") +
-    theme_classic()
+  #{if(log.rates==T)geom_ribbon(data=RaT, aes(x=time-max(time), ymin=log(`5%`), ymax=log(`95%`)), fill="grey", alpha=0.5)} +
+  #{if(log.rates==F)geom_ribbon(data=RaT, aes(x=time-max(time), ymin=`5%`, ymax=`95%`), fill="grey", alpha=0.5)} +
+  #{if(log.rates==T)geom_line(data=RaT, aes(x=time-max(time), y=log(rate)), color="darkGrey", lwd=lsize-1)} +
+  #{if(log.rates==F)geom_line(data=RaT, aes(x=time-max(time), y=rate), color="darkGrey", lwd=lsize-1)} +
+  geom_ribbon(data=RaT, aes(x=time-max(time), ymin=`5%`, ymax=`95%`), fill="grey", alpha=0.5) +
+  geom_line(data=RaT, aes(x=time-max(time), y=rate), color="darkGrey", lwd=lsize) +
+  # the two commented lines will plot the trajectory of every branch
+  #geom_segment(data=rate.traj.obj, aes(x=timestart, xend=timestart, y=ratestart, yend=ratestop), lwd=lsize, color="lightBlue", alpha=0.5, lineend="round") +
+  #geom_segment(data=rate.traj.obj, aes(x=timestart, xend=timestop,  y=edge.rate, yend=edge.rate),lwd=lsize, color="lightBlue", alpha=0.5, lineend="round") +
+  geom_segment(data=edge.shifts.unique, aes(x=timestart, xend=timestart, y=ratestart, yend=ratestop),  lwd=lsize, color=edge.shifts.unique$edge.color, lineend="round") +
+  geom_segment(data=edge.shifts.unique, aes(x=timestart, xend=timestop,  y=edge.rate, yend=edge.rate), lwd=lsize, color=edge.shifts.unique$edge.color, lineend="round") +
+  geom_point(data=edge.shifts.unique,   aes(x=timestart, y=ratestart), size=psize, shape=21, fill="white", color="#706f6f") +
+  geom_point(data=edge.shifts.unique,   aes(x=timestop,  y=ratestop),  size=psize, shape=21, fill="white", color="#706f6f") +
+  geom_point(data=shifts,        aes(x=timestop,  y=ratestop),  size=psize-1, shape=20, fill="black") +
+  {if(log.rates==T && relative.rates==F)ylab("log Evolutionary Rate")} +
+  {if(log.rates==F && relative.rates==F)ylab("Evolutionary Rate")} +
+  {if(log.rates==F && relative.rates==T)ylab("Relative Evolutionary Rate")} +
+  xlab("Million Years Ago") +
+  theme_classic()
+
 }
 # e.g.: rate.to.node.BT(phy=egernia.tree, PPP.obj=all.BT$all.res$Interlimb, psize=3, lsize=2, rates.logged=F)
 

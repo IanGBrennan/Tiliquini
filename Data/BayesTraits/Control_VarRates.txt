@@ -1,0 +1,6 @@
+7
+2
+VarRates
+Burnin 10000000
+Iterations 110000000
+Run

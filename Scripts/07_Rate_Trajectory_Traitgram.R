@@ -24,7 +24,8 @@ HEAD.plot <- rate.trajectory.BT.module(tree = til.tree, module = HEAD.anc.module
                                        PPP.all.res = module.BT$all.res$Head,
                                        tip.spread = c("Tiliqua_rugosa","Tiliqua_scincoides"),
                                        focus = "clade", psize=3, lsize=2, background.color="grey",
-                                       gimme.the.data=F, inset=T, relative.rates=T)
+                                       gimme.the.data=F, inset=T, relative.rates=T,
+                                       col.palette="YlGnBu")
 HEAD.rate <- rate.trajectory.BT.module(tree = til.tree, module = HEAD.anc.module,
                                        PPP.all.res = module.BT$all.res$Head,
                                        tip.spread = c("Cyclodomorphus_michaeli","Cyclodomorphus_praealtus"),
@@ -41,7 +42,8 @@ BODY.plot <- rate.trajectory.BT.module(tree = til.tree, module = BODY.anc.module
                                        PPP.all.res = module.BT$all.res$Body,
                                        tip.spread = c("Tiliqua_rugosa","Cyclodomorphus_maximus"),
                                        focus = "clade", psize=3, lsize=2, background.color="grey",
-                                       gimme.the.data=F, inset=T, relative.rates=T)
+                                       gimme.the.data=F, inset=T, relative.rates=T,
+                                       col.palette="YlGnBu")
 BODY.rate <- rate.trajectory.BT.module(tree = til.tree, module = BODY.anc.module,
                                        PPP.all.res = module.BT$all.res$Body,
                                        tip.spread = c("Cyclodomorphus_michaeli","Cyclodomorphus_praealtus"),
@@ -56,7 +58,8 @@ TAIL.plot <- rate.trajectory.BT.module(tree = til.tree, module = TAIL.anc.module
                                        PPP.all.res = module.BT$all.res$Tail,
                                        tip.spread = c("Egernia_depressa","Egernia_cygnitos"),
                                        focus = "clade", psize=3, lsize=2, background.color="grey",
-                                       gimme.the.data=F, inset=T, relative.rates=T)
+                                       gimme.the.data=F, inset=T, relative.rates=T,
+                                       col.palette="YlGnBu")
 TAIL.rate <- rate.trajectory.BT.module(tree = til.tree, module = TAIL.anc.module,
                                        PPP.all.res = module.BT$all.res$Tail,
                                        tip.spread = c("Cyclodomorphus_michaeli","Cyclodomorphus_praealtus"),
@@ -75,7 +78,8 @@ LIMB.plot <- rate.trajectory.BT.module(tree = til.tree, module = LIMB.anc.module
                                        PPP.all.res = module.BT$all.res$Limb,
                                        tip.spread = c("Tiliqua_rugosa","Cyclodomorphus_maximus"),
                                        focus = "clade", psize=3, lsize=2, background.color="grey",
-                                       gimme.the.data=F, inset=T, relative.rates=T)
+                                       gimme.the.data=F, inset=T, relative.rates=T,
+                                       col.palette="YlGnBu")
 LIMB.rate <- rate.trajectory.BT.module(tree = til.tree, module = LIMB.anc.module,
                                        PPP.all.res = module.BT$all.res$Limb,
                                        tip.spread = c("Cyclodomorphus_michaeli","Cyclodomorphus_praealtus"),
@@ -98,10 +102,10 @@ save(rate.list, file="Data/rate.trajectories.RData")
 
 
 # Plot it for adding to multi figure panel
-(plot_spacer() + HEAD.plot + plot_spacer())/
-  (plot_spacer() + LIMB.plot + plot_spacer()) /
-  (plot_spacer() + TAIL.plot + plot_spacer()) /
-  (plot_spacer() + BODY.plot + plot_spacer())
+(plot_spacer()   + plot_spacer() + HEAD.plot)/
+  (plot_spacer() + plot_spacer() + LIMB.plot) /
+  (plot_spacer() + plot_spacer() + TAIL.plot) /
+  (plot_spacer() + plot_spacer() + BODY.plot)
 
 
 

@@ -5,12 +5,12 @@ source("/Scripts/Calculate_AICs.R")
 library(dplyr)
 
 # summarize the BayesTraits results for each morphological trait
-setwd("/Users/ianbrennan/My Drive/R.Analyses/BayesTraitsV3/PPPostProcess")
+setwd("/Applications/BayesTraitsV4/PPPostProcess")
 in.files <- dir(getwd(), pattern="_TraitResults.txt") # will give you the files for individual traits
 in.files <- dir(getwd(), pattern="_ModuleResults.txt") # will give you the files for modules
 
 # process the outputs of BayesTraits
-all.BT <- process_PPP(res.files = in.files, phy = egernia.tree, col.palette="YlOrRd")
+all.BT <- process_PPP(res.files = in.files, phy = til.tree, col.palette="YlOrRd")
 # the above will give you a series of trees and res objects
 # all.BT$all.trees holds a tree for each trait. The tree is your input tree, rescaled by the mean estimated sigma (rate) value per branch (Mean.SigV in BayesTraits terms)
 # all.BT$all.sig holds the mean sigma value per branch in a vector (?), this is the value each branch above was scaled by

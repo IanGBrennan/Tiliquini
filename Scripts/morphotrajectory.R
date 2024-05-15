@@ -36,7 +36,8 @@ morphotrajectory.RR <- function(phy, trait, anc, branch.rates, tip.spread,
                        nodestop=obj$edge[,2])
   
   # log and scale the module rates
-  rate.df <- data.frame(raw.rate = branch.rates[,1])
+  #rate.df <- data.frame(raw.rate = branch.rates[,1])
+  rate.df <- data.frame(raw.rate = branch.rates$"Mean.SigV")
   rate.df$rate <- log(rate.df$raw.rate)
   rate.df$scaled <- round((rate.df$rate - min(rate.df$rate))/diff(range(rate.df$rate)) * 99) + 1
   # choose colors and apply them to the scaled rates
@@ -259,7 +260,7 @@ sim.morphotrajectory <- function(phy, trait, sim.num){
 # showing the accumulation of variation at each internal node. This is plotted atop 
 # a distribution of traits simulated under BM showing the possible trait values for 
 # each node for a direct comparison of simulated to empirical node values.
-sim.to.node <- function(phy, VRphy, trait, tip, sim.num){
+sim.to.node <- function(phy, VRphy, trait, tip, sim.num, legend=c("bottom","none")){
   # get the path from the root to the focal tip
   tip.node <- which(phy$tip.label==tip)
   tip.path <- nodepath(phy, from=Ntip(phy)+1, to=tip.node)
@@ -338,7 +339,7 @@ sim.to.node <- function(phy, VRphy, trait, tip, sim.num){
                  color="black", lwd=1, linetype="dotted") +
     geom_point(data=node.emps, aes(x=get(names(node.emps)[[1]]), y=get(names(node.emps)[[2]]), color=node), size=3) +
     xlab(names(trait.anc)[[1]]) + ylab(names(trait.anc)[[2]]) +
-    theme_classic() + theme(legend.position="bottom")
+    theme_classic() + theme(legend.position=legend)
 }
 
 # e.g.:
@@ -356,7 +357,8 @@ sim.to.node <- function(phy, VRphy, trait, tip, sim.num){
 # distances measured to the root node
 # then the plot shows the difference in trait accumulated between nodes compared
 # between the observed and uncorrelated BM
-distance.btwn.nodes <- function(phy, VRphy, trait, tip, sim.num, stat=c("confidence","quantile")){
+distance.btwn.nodes <- function(phy, VRphy, trait, tip, sim.num, 
+                                stat=c("confidence","quantile"), legend=c("bottom","none","right")){
   # get the path from the root to the focal tip
   tip.node <- which(phy$tip.label==tip)
   tip.path <- nodepath(phy, from=Ntip(phy)+1, to=tip.node)
@@ -446,7 +448,7 @@ distance.btwn.nodes <- function(phy, VRphy, trait, tip, sim.num, stat=c("confide
     geom_point(data=euc.pair, aes(x=timestop,y=empirical-mean,color=node.name)) +
     scale_color_manual(values=more.colors) +
     xlab("Time (Millions of Years)") + ylab("Trait Difference Along Edge (observed - BM)") +
-    theme_classic() + theme(legend.position="bottom")
+    theme_classic() + theme(legend.position=legend)
     
 }
 

@@ -5,7 +5,10 @@ require(viridisLite)
 # process one or more BayesTraits PPPostProcess file(s)
 # this assumes your input files are named beginning with the trait, e.g. "TailLength_Results.txt"
 
-process_PPP <- function(res.files, phy, col.palette, rate.metric=c("Mean.SigV","Median.Scalar")){
+process_PPP <- function(res.files, phy, col.palette, relative.rates=F){
+  # warn users (me) that they will now be using relative rates
+  #warning("now converting to relative rates (via mean scalars) \n
+  #  this will affect downstream visualizations")
   # make some empty objects for us to store results
   all.trees <- NULL; all.names <- NULL; all.sig <- NULL; 
   all.res <- NULL; scalar.trees <- NULL; rate.trees <- NULL
@@ -54,6 +57,16 @@ process_PPP <- function(res.files, phy, col.palette, rate.metric=c("Mean.SigV","
     BTres$ratestart <- unlist(sapply(BTres$parent.node, root.rate))
     BTres$ratestop  <- unlist(sapply(BTres$child.node,  function(x) BTres$Mean.SigV[which(BTres$child.node==x)]))
 
+    # establish the start and end rates of each branch/edge
+    # get the trait values at the parent and child nodes (start and end of edge)
+    root.scalar <- function(y){
+      if(y==Ntip(phy)+1){0}
+      else{BTres$Mean.Scalar[which(BTres$child.node==y)]}
+    }    
+    BTres$scalarstart <- unlist(sapply(BTres$parent.node, root.scalar))
+    BTres$scalarstop  <- unlist(sapply(BTres$child.node,  function(x) BTres$Mean.Scalar[which(BTres$child.node==x)]))
+    BTres$edge.scalar <- BTres$Mean.Scalar
+
     # scale the rates by the fastest rate (for ease of plotting)
     BTres$edge.rate <- BTres$Mean.SigV
     BTres$rounded.rates <- round((BTres$Mean.SigV - min(BTres$Mean.SigV))/diff(range(BTres$Mean.SigV)) * 99) + 1
@@ -83,8 +96,9 @@ process_PPP <- function(res.files, phy, col.palette, rate.metric=c("Mean.SigV","
                                   Node.No, edge,
                                   child.node, parent.node,
                                   timestart, timestop,
-                                  ratestart, ratestop, 
-                                  edge.rate, rounded.rates, 
+                                  ratestart, ratestop,
+                                  scalarstart, scalarstop, 
+                                  edge.rate, edge.scalar, rounded.rates, 
                                   edge.color, palette)
     # make a vector of sigma and scale the tree by the sigma rate
     sig.bt <- BTres$Mean.SigV; names(sig.bt) <- BTres$child.node
@@ -292,11 +306,13 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
   #if(log.rates==T){BT$Mean.SigV <- log(BT$Mean.SigV)}
   all.edges <- data.frame(edge.rate = BT$Mean.SigV,
                           edge = BT$edge,
-                          child.node = BT$child.node)
+                          child.node = BT$child.node,
+                          scalar = BT$Mean.Scalar) # could also use 'scalar = BT$edge.scalar'
   if(log.rates==T && relative.rates==F){all.edges$raw.rate <- all.edges$edge.rate; all.edges$edge.rate <- log(all.edges$edge.rate)}
   #if(log.rates==T && relative.rates==T){all.edges$edge.rate <- mean(all.edges$edge.rate) / all.edges$edge.rate}
   if(log.rates==T && relative.rates==T){all.edges$raw.rate <- all.edges$edge.rate / mean(all.edges$edge.rate); all.edges$edge.rate <- log(all.edges$edge.rate)}
-  if(log.rates==F && relative.rates==T){all.edges$edge.rate <- all.edges$edge.rate / mean(all.edges$edge.rate)}
+  #if(log.rates==F && relative.rates==T){all.edges$edge.rate <- all.edges$edge.rate / mean(all.edges$edge.rate)} # this was the old dumb way of getting the relative rates!
+  if(log.rates==F && relative.rates==T){all.edges$edge.rate <- all.edges$scalar}  # this is the correct way of getting relative rates because it's already available as the scalar!
   #all.edges <- all.edges[-which(all.edges$child.node==Ntip(phy)+1),]
   
   # scale the rates by the fastest rate (for ease of plotting)
@@ -367,10 +383,14 @@ plot.VarRates.tree <- function(BT, phy, col.palette = "Blues", legend = F,
   }
   
   # if we chose to plot a legend, do that now
+  if(legend==T && log.rates==F && relative.rates==F){plot(0,type='n',axes=FALSE,ann=FALSE);
+    color.bar(new.cols, 
+              min=round(min(all.edges$edge.rate),5),
+              max=round(max(all.edges$edge.rate),5))}
   if(legend==T && log.rates==F && relative.rates==T){plot(0,type='n',axes=FALSE,ann=FALSE);
     color.bar(new.cols, 
-              min=round(min(all.edges$edge.rate),2),
-              max=round(max(all.edges$edge.rate),2))}
+              min=round(min(all.edges$edge.rate),5),
+              max=round(max(all.edges$edge.rate),5))}
   if(legend==T && log.rates==T && relative.rates==F){plot(0,type='n',axes=FALSE,ann=FALSE);
     color.bar(new.cols, 
               min=round(min(all.edges$raw.rate),5),

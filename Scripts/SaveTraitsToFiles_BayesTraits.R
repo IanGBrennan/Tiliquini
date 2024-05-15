@@ -8,3 +8,9 @@ for(j in 1:length(all.modules)){
     write.table(trait, file=filename, sep=" ", quote=F, col.names=F)
   }
 }
+
+for(j in 1:length(all.modules)){
+  tname <- names(all.modules)[[j]]
+  filename <- paste0("~/Desktop/", tname, ".txt")
+  write.table(all.modules[[j]], file=filename, sep=" ", quote=F, col.names=F)
+}

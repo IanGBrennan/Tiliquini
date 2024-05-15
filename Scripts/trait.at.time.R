@@ -193,7 +193,7 @@ extract.variance <- function(trait.time.obj, plot=c("cumulative", "relative", "s
 
 
 # get the rates at timeslices from a processed dataframe
-rate.at.time.df <- function(timeslices, obj, plot=F){
+rate.at.time.df <- function(timeslices, obj, plot=F, relative.rates=c("F","mean","median")){
   # define the timeslices for extracting trait values, and apply it to your tree
   ts <- c(seq(from=min(c(obj$timestart,obj$timestop)), to=max(c(obj$timestart,obj$timestop)), by=timeslices), max(c(obj$timestart,obj$timestop)))
   
@@ -229,6 +229,11 @@ rate.at.time.df <- function(timeslices, obj, plot=F){
   # reorder the columns so 'time' comes first
   rate.time <- relocate(rate.time, time)
   colnames(rate.time) <- c("time", "rate")
+
+  # rescale rates relative to the mean if requested
+  if(relative.rates=="F"){rate.time$rate <- rate.time$rate}
+  if(relative.rates=="mean"){rate.time$rate <- rate.time$rate/mean(rate.time$rate)}
+  if(relative.rates=="median"){rate.time$rate <- rate.time$rate/median(rate.time$rate)}
   
   # plot the values if you're interested, it should look like the horizontal branches of the tree
   if(plot==T){plot(rate.time$rate ~ rate.time$time, xlab="Time", ylab="Rate", pch=16)}

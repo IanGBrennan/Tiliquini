@@ -21,3 +21,4 @@ anc.all.df <- data.frame(anc.all.traits)
 total.ie.phy <- innovate.elaborate.phy(trait.df = anc.all.df, 
                                        phy=til.tree, plot=T, summary=T, 
                                        angles="equal", PCs=c(1,2))
+

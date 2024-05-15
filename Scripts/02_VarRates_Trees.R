@@ -22,8 +22,8 @@ load("Data/BayesTraits_processed_MODULES.RData")
 
 plot.VarRates.tree(BT = module.BT$all.res$Head, # res object for focal trait
                    phy = til.tree, # tree for focal trait
-                   col.palette = "GnBu", # choose your color palette
-                   legend = T, # want a rate legend included?
+                   col.palette = "YlGnBu", # choose your color palette
+                   legend = F, # want a rate legend included?
                    tree.type = "phylogram", # tree shape
                    log.rates = F, # should rates be logged (probably)
                    relative.rates = T, # should rates be relative (more dramatic! log.rates must be = F)
