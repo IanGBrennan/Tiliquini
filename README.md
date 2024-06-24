@@ -16,6 +16,11 @@ Each directory includes a summary of the associated files.
 
 ---
 
+### [BEAST](BEAST/)
++ XML file for combined evidence (molecular + discrete morphological data) analysis.
+
+---
+
 ### [Data](Data/)
 + Input raw and processed data files, and RData objects for recreating analyses. 
 
@@ -26,7 +31,7 @@ Each directory includes a summary of the associated files.
 
 ---
 
-## [Manuscript](Manuscript/)
+### [Manuscript](Manuscript/)
 + All original and revised manuscript files
 
 ---
@@ -41,6 +46,6 @@ Each directory includes a summary of the associated files.
 
 ___
 
-## [Walkthrough](Walkthrough/)
+### [Walkthrough](Walkthrough/)
 + A general walkthrough of the methods, data, and analyses. 
 

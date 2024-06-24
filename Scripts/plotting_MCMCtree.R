@@ -1,3 +1,7 @@
+require(phytools)
+require(dplyr)
+require(tidyr)
+
 # plot a phylogeny with branches colored by rate
 # coloring options are a bit tricky, so stick to 'log.rates=F relative.rates=T'
 plot.MCMCRates.tree <- function(mcmc.sum, phy, col.palette = "Blues", legend = F,
@@ -132,4 +136,49 @@ color.bar <- function(lut, min=0, max=100, nticks=11, ticks=seq(min, max, len=nt
     y = (i-1)/scale + min
     rect(0,y,10,y+1/scale, col=lut[i], border=NA)
   }
+}
+
+# this is the helper function for processing the MCMC file to extract and summarize branch rate information
+process_MCMCrates <- function(mcmc.df) {
+  
+  # provide adequate warning 
+  message(paste("processing may be slow provided", nrow(mcmc.df), "MCMC samples"))
+  
+  # extract just the rate parameters
+  rates <- dplyr::select(mcmc.df, starts_with("r"))
+  
+  # reshape the data into long format
+  full.rates <- rates %>% 
+    tidyr::pivot_longer(
+      cols = 1:ncol(rates), 
+      values_to = "rate",
+      names_to = "name"
+    )
+  
+  # add some extra data columns
+  full.rates$partition <- sapply(full.rates$name, function(x) strsplit(x, "_")[[1]][2])
+  full.rates$nedge <- sapply(full.rates$name, function(x) strsplit(x, "_")[[1]][3])
+  full.rates$edge <- sapply(full.rates$nedge, function(x) strsplit(x,"n")[[1]][2])
+  
+  # summarize mean rates per edge
+  mean.rates <- full.rates %>%
+    group_by(edge) %>%
+    summarise(mean = mean(rate), n = n())
+  # translate edge to numeric
+  mean.rates$edge <- as.numeric(as.character(mean.rates$edge))
+  #mean.rates$edge <- mean.rates$node + Ntip(tree)
+  
+  # establish the relationship between edge and node numbers
+  tree.edge <- data.frame(parent.node = tree$edge[,1],
+                          child.node = tree$edge[,2],
+                          ape.edge = 1:nrow(tree$edge),
+                          mcmc.edge = tree$edge[,2])
+  
+  # connect the mcmc edge convention with ape
+  colnames(mean.rates)[[1]] <- "mcmc.edge"
+  mean.rates$edge <- sapply(mean.rates$mcmc.edge, function(x) tree.edge[which(tree.edge$mcmc.edge == x),"ape.edge"])
+  mean.rates$child.node <- mean.rates$mcmc.edge
+  
+  # return the processed dataframe
+  return(mean.rates)
 }
